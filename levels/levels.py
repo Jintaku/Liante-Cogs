@@ -20,7 +20,13 @@ class Levels:
     XP_MIN = "xp_min"
     XP_MAX = "xp_max"
     COOLDOWN = "cooldown"
+    SINGLE_ROLE = "single_role"
     AUTOROLES = "autoroles"
+
+    ROLE_ID = "role_id"
+    ROLE_NAME = "role_name"
+    DESCRIPTION = "description"
+    DEFAULT_DESC = "No description given."
 
     USER_ID = "user_id"
     USERNAME = "username"
@@ -41,7 +47,8 @@ class Levels:
             self.XP_MIN: 15,
             self.XP_MAX: 25,
             self.COOLDOWN: 60,
-            self.AUTOROLES: {}
+            self.SINGLE_ROLE: True,
+            self.AUTOROLES: []
         }
 
         self.config.register_guild(**default_guild, force_registration=True)
@@ -61,8 +68,6 @@ class Levels:
         for prefix in prefixes:
             if message.content.startswith(prefix):
                 return
-
-        await message.channel.send("this works!")
 
         user = message.author
         guild = message.guild
@@ -206,15 +211,61 @@ class Levels:
     @commands.guild_only()
     @commands.group(aliases=["la"], autohelp=True)
     async def lvladmin(self, ctx: Context):
-        """Admin stuff."""
+        """Admin commands."""
         pass
 
     @lvladmin.group(autohelp=True)
     async def guild(self, ctx: Context):
+        """Guild options"""
         pass
+
+    @guild.group(autohelp=True)
+    async def roles(self, ctx: Context):
+        """Autoroles options"""
+        pass
+
+    @roles.command(name="list")
+    async def roles_list(self, ctx: Context):
+        """Shows all configured roles"""
+
+        roles = await self.config.guild(ctx.guild).autoroles()
+        embed = discord.Embed(title="Configured Roles:")
+        for role in roles:
+            embed.add_field(name="Level {0} - {1}".format(role[self.LEVEL], role[self.ROLE_NAME]),
+                            value="{}".format(role[self.DESCRIPTION]),
+                            inline=False)
+
+        if not embed.fields:
+            embed.description = "No autoroles have been defined in this Guild yet."
+
+        embed.set_footer(text="use !la guild roles add <role> <level> [description] to add more")
+
+        await ctx.send(embed=embed)
+
+    @roles.command(name="add")
+    async def roles_add(self, ctx: Context, role: discord.Role, level: int, *, description = None):
+        """
+        Adds a new automatic role
+
+        The roles are by default non-cumulative. Change the mode with [p]la config set mode [True|False]
+        """
+        role_id = role.id
+        role_name = role.name
+        if description is None:
+            description = self.DEFAULT_DESC
+        role_config = {
+            self.ROLE_ID: role_id,
+            self.ROLE_NAME: role_name,
+            self.LEVEL: level,
+            self.DESCRIPTION: description
+        }
+        autoroles: list = await self.config.guild(ctx.guild).autoroles()
+        autoroles.append(role_config)
+        await self.config.guild(ctx.guild).autoroles.set(autoroles)
 
     @guild.command(name="reset")
     async def guild_reset(self, ctx: Context):
+        """Deletes ***all*** stored data of the guild."""
         guild_coll = self.levels_db[str(ctx.message.guild.id)]
         await guild_coll.drop()
 
@@ -226,7 +277,7 @@ class Levels:
     @user.command(name="reset")
     async def user_reset(self, ctx: Context, user: discord.Member):
         """
-        Deletes all stored data of a user.
+        Deletes ***all*** stored data of a user.
 
         user: Mention the user whose data you want to delete.
         """
@@ -264,62 +315,141 @@ class Levels:
 
     @lvladmin.group(name="config", autohelp=True)
     async def configuration(self, ctx: Context):
+        """Configuration options"""
         pass
+
+    @configuration.command(name="reset")
+    async def config_reset(self, ctx: Context):
+        """Reset all configuration to defaults"""
+        await self.config.guild(ctx.guild).clear()
+        await ctx.send("Configuration defaults have been restored")
 
     @configuration.group(name="set", autohelp=True)
     async def config_set(self, ctx: Context):
+        """Change config values"""
         pass
 
     @config_set.command(name="goal")
     async def set_xp_goal_base(self, ctx: Context, new_value: int):
+        """
+        Base goal xp
+
+        This is the xp needed to reach level 1. Subsequent goals are measured with the current level's value.
+        """
         await self.config.guild(ctx.guild).xp_goal_base.set(new_value)
         await ctx.send("XP goal base value updated")
 
     @config_set.command(name="gainfactor", aliases=["gf"])
     async def set_xp_gain_factor(self, ctx: Context, new_value: float):
+        """
+        Increases the xp reward
+
+        XP gained += XP gained * lvl * this factor
+        """
         await self.config.guild(ctx.guild).xp_gain_factor.set(new_value)
         await ctx.send("XP gain factor value updated")
 
     @config_set.command(name="minxp")
     async def set_xp_min(self, ctx: Context, new_value: int):
+        """
+        Minimum xp per message
+
+        Note that the real minimum is this * lvl * gain factor
+        """
         await self.config.guild(ctx.guild).xp_min.set(new_value)
         await ctx.send("Minimum xp per message value updated")
 
     @config_set.command(name="maxxp")
     async def set_xp_max(self, ctx: Context, new_value: int):
+        """
+        Maximum xp per message
+
+        Note that the real maximum is this * lvl * gain factor
+        """
         await self.config.guild(ctx.guild).xp_max.set(new_value)
         await ctx.send("Maximum xp per message value updated")
 
     @config_set.command(name="cooldown")
     async def set_cooldown(self, ctx: Context, new_value: int):
+        """
+        Time between xp awards
+
+        In seconds
+        """
         await self.config.guild(ctx.guild).cooldown.set(new_value)
         await ctx.send("XP cooldown value updated")
 
+    @config_set.command(name="mode")
+    async def set_role_mode(self, ctx: Context, new_value: bool):
+        """
+        Autoroles handling
+
+        Determines if old roles should be removed when a new one is gained by leveling up. Set False to keep them.
+        """
+        await self.config.guild(ctx.guild).single_role.set(new_value)
+        await ctx.send("Role mode value updated")
+
     @configuration.group(name="get", autohelp=True)
     async def config_get(self, ctx: Context):
+        """Check current configuration"""
         pass
 
     @config_get.command(name="goal")
     async def get_xp_goal_base(self, ctx: Context):
+        """
+        Base goal xp
+
+        This is the xp needed to reach level 1. Subsequent goals are measured with the current level's value.
+        """
         value = await self.config.guild(ctx.guild).xp_goal_base()
         await ctx.send("XP goal base: {}".format(value))
 
     @config_get.command(name="gainfactor", aliases=["gf"])
     async def get_xp_gain_factor(self, ctx: Context):
+        """
+        Increases the xp reward
+
+        XP gained += XP gained * lvl * this factor
+        """
         value = await self.config.guild(ctx.guild).xp_gain_factor()
         await ctx.send("XP gain factor: {}".format(value))
 
     @config_get.command(name="minxp")
     async def get_xp_min(self, ctx: Context):
+        """
+        Minimum xp per message
+
+        Note that the real minimum is this * lvl * gain factor
+        """
         value = await self.config.guild(ctx.guild).xp_min()
         await ctx.send("Minimum xp per message: {}".format(value))
 
     @config_get.command(name="maxxp")
     async def get_xp_max(self, ctx: Context):
+        """
+        Maximum xp per message
+
+        Note that the real maximum is this * lvl * gain factor
+        """
         value = await self.config.guild(ctx.guild).xp_max()
         await ctx.send("Maximum xp per message: {}".format(value))
 
     @config_get.command(name="cooldown")
     async def get_cooldown(self, ctx: Context):
+        """
+        Time between xp awards
+
+        In seconds
+        """
         value = await self.config.guild(ctx.guild).cooldown()
         await ctx.send("XP cooldown: {}".format(value))
+
+    @config_get.command(name="mode")
+    async def get_role_mode(self, ctx: Context):
+        """
+        Autoroles handling
+
+        Determines if old roles should be removed when a new one is gained by leveling up. Set False to keep them.
+        """
+        value = "single" if await self.config.guild(ctx.guild).single_role() else "multi"
+        await ctx.send("The role mode is set to: {}-role".format(value))
