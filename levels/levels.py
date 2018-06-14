@@ -2,6 +2,7 @@ from redbot.core import commands, Config, checks
 from redbot.core.bot import Red
 from redbot.core.commands import Context
 from random import randint
+from datetime import datetime
 import discord
 import motor.motor_asyncio
 import bson
@@ -27,6 +28,7 @@ class Levels:
     ROLE_NAME = "role_name"
     DESCRIPTION = "description"
     DEFAULT_DESC = "No description given."
+    DEFAULT_ROLE = "No level roles"
 
     USER_ID = "user_id"
     USERNAME = "username"
@@ -107,6 +109,7 @@ class Levels:
         if user_data is None:
             user_data = {self.USER_ID: bson.Int64(user.id),
                          self.USERNAME: user.display_name,
+                         self.ROLE_NAME: self.DEFAULT_ROLE,
                          self.EXP: 0,
                          self.LEVEL: 0,
                          self.GOAL: await guild_conf.xp_goal_base(),
@@ -170,28 +173,8 @@ class Levels:
                                     {"$set": {self.GOAL: user_data[self.GOAL]}})
 
     @commands.guild_only()
-    @commands.command()
-    async def xp(self, ctx: Context, user: discord.Member = None):
-        """
-        Displays your current xp.
-
-        Mention someone to know theirs.
-        """
-        if user is None:
-            user = ctx.author
-        guild = ctx.guild
-        guild_id = str(guild.id)
-        user_id = user.id
-        user_data = await self.levels_db[guild_id].find_one({self.USER_ID: user_id})
-        current_exp = user_data[self.EXP]
-        next_goal = user_data[self.GOAL]
-        await ctx.send("{0}'s info:\nxp: {1}; goal: {2}; needed: {3}".format(user.mention,
-                                                                             current_exp,
-                                                                             next_goal,
-                                                                             next_goal - current_exp))
-
-    @commands.command(aliases=["lvl"])
-    async def level(self, ctx: Context, user: discord.Member = None):
+    @commands.command(name="level", aliases=["lvl"])
+    async def level_check(self, ctx: Context, user: discord.Member = None):
         """
         Displays your current level.
 
@@ -211,8 +194,27 @@ class Levels:
             await ctx.send("User not registered in the database")
             return
 
+        embed = await self._level_embed(ctx, user, user_data)
+        await ctx.send(embed=embed)
+
+    async def _level_embed(self, ctx: Context, user: discord.Member, user_data):
         current_lvl = user_data[self.LEVEL]
-        await ctx.send("{0}'s current level is: {1}".format(user.mention, current_lvl))
+        current_exp = user_data[self.EXP]
+        next_goal = user_data[self.GOAL]
+        level_role = user_data[self.ROLE_NAME]
+        username = user_data[self.USERNAME]
+        color = user.color
+
+        embed = discord.Embed(title=username, description=user.top_role.name, color=color)
+        embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
+        embed.set_thumbnail(url=user.avatar_url)
+        embed.add_field(name="Level", value=current_lvl, inline=True)
+        embed.add_field(name="Role", value=level_role, inline=True)
+        embed.add_field(name="XP", value=current_exp, inline=True)
+        embed.add_field(name="Goal", value=next_goal, inline=True)
+        embed.timestamp = datetime.utcnow()
+
+        return embed
 
     @commands.command(aliases=["lb"])
     async def leaderboard(self, ctx: Context):
@@ -280,6 +282,7 @@ class Levels:
         """Deletes ***all*** stored data of the guild."""
         guild_coll = self.levels_db[str(ctx.message.guild.id)]
         await guild_coll.drop()
+        await ctx.send("The guild's data has been wiped.")
 
     @lvladmin.group(autohelp=True)
     async def user(self, ctx: Context):
