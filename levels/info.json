@@ -1,0 +1,9 @@
+{
+  "author": "Liante",
+  "bot_version": [3,0,0],
+  "description": "A per-server leveling system with automatic roles.",
+  "short": "Leveling system for Red.",
+  "tags": ["level", "leveling", "autoroles", "leaderboard", "game"],
+  "install_msg": "Thank you for using the alpha version of Levels! You will need to set up MongoDB to get going.",
+  "hidden": false
+}

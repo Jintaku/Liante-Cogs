@@ -1,0 +1,10 @@
+{
+  "author": "Liante",
+  "bot_version": [3,0,0],
+  "description": "An role picker based on message reactions.",
+  "short": "Reaction autoroles.",
+  "tags": ["level", "leveling", "autoroles", "leaderboard", "game"],
+  "install_msg": "Thank you for using the alpha version of Autoroles!",
+  "hidden": true,
+  "disabled": true
+}
