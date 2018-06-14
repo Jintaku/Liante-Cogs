@@ -214,6 +214,10 @@ class Levels:
         current_lvl = user_data[self.LEVEL]
         await ctx.send("{0}'s current level is: {1}".format(user.mention, current_lvl))
 
+    @commands.command(aliases=["lb"])
+    async def leaderboard(self, ctx: Context):
+        await ctx.send("not yet implemented =(")
+
     @checks.admin()
     @commands.guild_only()
     @commands.group(aliases=["la"], autohelp=True)
