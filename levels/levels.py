@@ -86,7 +86,7 @@ class Levels:
 
         level_up = await self._process_xp(guild_conf, guild_coll, user_data)
         if level_up:
-            await channel.send("level up!")
+            await channel.send("Congratulations {0}, you're now level {1}".format(user.mention, user_data[self.LEVEL]))
 
     async def _get_guild_coll(self, guild: discord.Guild):
         """
@@ -177,7 +177,6 @@ class Levels:
 
         Mention someone to know theirs.
         """
-
         if user is None:
             user = ctx.author
         guild = ctx.guild
@@ -191,20 +190,28 @@ class Levels:
                                                                              next_goal,
                                                                              next_goal - current_exp))
 
-    @commands.command()
-    async def lvl(self, ctx: Context, user: discord.Member = None):
+    @commands.command(aliases=["lvl"])
+    async def level(self, ctx: Context, user: discord.Member = None):
         """
         Displays your current level.
 
         Mention someone to know theirs.
         """
-
         if user is None:
             user = ctx.author
+        if user.bot:
+            await ctx.send("Bots can't play levels =(")
+            return
+
         guild = ctx.guild
         guild_id = str(guild.id)
         user_id = user.id
-        current_lvl = (await self.levels_db[guild_id].find_one({self.USER_ID: user_id}))[self.LEVEL]
+        user_data = await self.levels_db[guild_id].find_one({self.USER_ID: user_id})
+        if user_data is None:
+            await ctx.send("User not registered in the database")
+            return
+
+        current_lvl = user_data[self.LEVEL]
         await ctx.send("{0}'s current level is: {1}".format(user.mention, current_lvl))
 
     @checks.admin()
@@ -227,7 +234,6 @@ class Levels:
     @roles.command(name="list")
     async def roles_list(self, ctx: Context):
         """Shows all configured roles"""
-
         roles = await self.config.guild(ctx.guild).autoroles()
         embed = discord.Embed(title="Configured Roles:")
         for role in roles:
@@ -243,7 +249,7 @@ class Levels:
         await ctx.send(embed=embed)
 
     @roles.command(name="add")
-    async def roles_add(self, ctx: Context, role: discord.Role, level: int, *, description = None):
+    async def roles_add(self, ctx: Context, role: discord.Role, level: int, *, description=None):
         """
         Adds a new automatic role
 
@@ -261,7 +267,9 @@ class Levels:
         }
         autoroles: list = await self.config.guild(ctx.guild).autoroles()
         autoroles.append(role_config)
-        await self.config.guild(ctx.guild).autoroles.set(autoroles)
+        sorted_roles = sorted(autoroles, key=lambda k: k[self.LEVEL])
+        await self.config.guild(ctx.guild).autoroles.set(sorted_roles)
+        await ctx.send("{0} will be automatically earned at level {1}".format(role.name, level))
 
     @guild.command(name="reset")
     async def guild_reset(self, ctx: Context):
@@ -290,8 +298,8 @@ class Levels:
         """Edit user data."""
         pass
 
-    @user_set.command(aliases=["lvl"])
-    async def level(self, ctx: Context, user: discord.Member, level: int):
+    @user_set.command(name="level", aliases=["lvl"])
+    async def set_level(self, ctx: Context, user: discord.Member, level: int):
         """
         Changes the level of a user.
 
