@@ -111,7 +111,7 @@ class Levels:
         Each guild gets a collection and a first document containing the guild's data
         """
         guild_coll = self.levels_db[str(guild.id)]
-        if await guild_coll.find_one({self.GUILD_ID: guild.id}) is None:
+        if await guild_coll.find_one({self.GUILD_ID: str(guild.id)}) is None:
             guild_info = {
                 self.DOCUMENT_NAME: self.GUILD_INFO,
                 self.GUILD_ID: str(guild.id),
@@ -445,7 +445,7 @@ class Levels:
     @guild.command(name="reset")
     async def guild_reset(self, ctx: Context):
         """Deletes ***all*** stored data of the guild."""
-        guild_coll = self.levels_db[str(ctx.message.guild.id)]
+        guild_coll = await self._get_guild_coll(ctx.guild)
         await guild_coll.drop()
         await ctx.send("The guild's data has been wiped.")
 
@@ -461,7 +461,7 @@ class Levels:
 
         user: Mention the user whose data you want to delete.
         """
-        guild_coll = self.levels_db[str(ctx.message.guild.id)]
+        guild_coll = await self._get_guild_coll(ctx.guild)
         await guild_coll.delete_one({self.USER_ID: user.id})
         await ctx.send("Data for {} has been deleted!".format(user.mention))
 
@@ -481,7 +481,7 @@ class Levels:
         """
 
         guild_config = self.config.guild(ctx.guild)
-        guild_coll = self.levels_db[str(ctx.message.guild.id)]
+        guild_coll = await self._get_guild_coll(ctx.guild)
         guild_roles = await self._get_roles(ctx.guild)
         guild_users = await self._get_users(ctx.guild)
         user_data = await self._get_user_data(guild_config, guild_coll, guild_users, user)
