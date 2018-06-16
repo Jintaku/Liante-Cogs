@@ -5,7 +5,6 @@ from random import randint
 from datetime import datetime
 import discord
 import motor.motor_asyncio
-import bson
 import time
 
 
@@ -31,6 +30,7 @@ class Levels:
     DEFAULT_DESC = "No description given."
     DEFAULT_ROLE = "No level roles"
 
+    USER_DATA = "user_data"
     USER_ID = "user_id"
     USERNAME = "username"
     EXP = "exp"
@@ -39,11 +39,15 @@ class Levels:
     LAST_TRIGGER = "last_trigger"
 
     DOCUMENT_NAME = "document_name"
-    GUILD_INFO = "guild info"
+    GUILD_INFO = "guild_info"
     GUILD_ID = "guild_id"
     GUILD_NAME = "guild_name"
     GUILD_USERS = "guild_users"
-    GUILD_ROLES = "guild roles"
+    GUILD_ROLES = "guild_roles"
+
+    GUILD_COLL = "guild_coll"
+    GUILD_CONF = "guild_conf"
+    USER = "user"
 
     def __init__(self, bot: Red):
         self.bot = bot
@@ -93,7 +97,12 @@ class Levels:
         if curr_time - last_trigger <= cooldown:
             return
 
-        level_up = await self._process_xp(guild_conf, guild_coll, guild_roles, guild_users, user_data, user)
+        level_up = await self._process_xp(guild_conf=guild_conf,
+                                          guild_coll=guild_coll,
+                                          guild_roles=guild_roles,
+                                          guild_users=guild_users,
+                                          user_data=user_data,
+                                          user=user)
         if level_up and await self.config.guild(guild).make_announcements():
             await channel.send("Congratulations {0}, you're now level {1}".format(user.mention, user_data[self.LEVEL]))
 
@@ -105,7 +114,7 @@ class Levels:
         if await guild_coll.find_one({self.GUILD_ID: guild.id}) is None:
             guild_info = {
                 self.DOCUMENT_NAME: self.GUILD_INFO,
-                self.GUILD_ID: bson.Int64(guild.id),
+                self.GUILD_ID: str(guild.id),
                 self.GUILD_NAME: guild.name
             }
             guild_users = {
@@ -156,7 +165,7 @@ class Levels:
         guild_users = cursor[self.GUILD_USERS]
         return guild_users
 
-    async def _process_xp(self, guild_conf, guild_coll, guild_roles, guild_users, user_data, user: discord.Member):
+    async def _process_xp(self, **kwargs):
         """
         _xp-logic-label:
         XP logic explanation
@@ -171,11 +180,18 @@ class Levels:
         is the same all the time in Discord, e.i. sending messages, this is the workaround I picked. It basically
         translates into similar difficulty at low levels but reachable high levels.
         """
+        guild_conf = kwargs[self.GUILD_CONF]
+        user_data = kwargs[self.USER_DATA]
+        guild_users = kwargs[self.GUILD_USERS]
+        guild_coll = kwargs[self.GUILD_COLL]
+        guild_roles = kwargs[self.GUILD_ROLES]
+        user = kwargs[self.USER]
+
         xp_min = await guild_conf.xp_min()
         xp_max = await guild_conf.xp_max()
         xp_gain_factor = await guild_conf.xp_gain_factor()
         xp_gain = randint(xp_min, xp_max)
-        message_xp = xp_gain + int(xp_gain * xp_gain_factor * user_data[self.LEVEL])
+        message_xp = xp_gain + int(xp_gain * xp_gain_factor * kwargs[self.USER_DATA][self.LEVEL])
 
         user_data[self.EXP] = user_data[self.EXP] + message_xp
         user_data[self.LAST_TRIGGER] = time.time()
@@ -184,30 +200,59 @@ class Levels:
                                     {"$set": {self.GUILD_USERS: guild_users}})
 
         if user_data[self.EXP] >= user_data[self.GOAL]:
-            await self._level_up(guild_coll, guild_roles, guild_users, user_data, user)
+            await self._level_up(guild_coll=guild_coll,
+                                 guild_roles=guild_roles,
+                                 guild_users=guild_users,
+                                 user_data=user_data,
+                                 user=user)
             return True
         return False
 
-    async def _level_up(self, guild_coll, guild_roles, guild_users, user_data, user: discord.Member):
+    async def _level_up(self, **kwargs):
         # Separated for admin commands implementation
-        await self._level_xp(guild_coll, guild_users, user_data)
-        await self._level_update(guild_coll, guild_roles, guild_users, user_data, user)
-        await self._level_goal(guild_coll, guild_users, user_data)
+        guild_users = kwargs[self.GUILD_USERS]
+        guild_coll = kwargs[self.GUILD_COLL]
+        guild_roles = kwargs[self.GUILD_ROLES]
+        user_data = kwargs[self.USER_DATA]
+        user = kwargs[self.USER]
 
-    async def _level_xp(self, guild_coll, guild_users, user_data):
+        await self._level_xp(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data)
+        await self._level_update(guild_coll=guild_coll,
+                                 guild_roles=guild_roles,
+                                 guild_users=guild_users,
+                                 user_data=user_data,
+                                 user=user)
+        await self._level_goal(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data)
+
+    async def _level_xp(self, **kwargs):
+        guild_users = kwargs[self.GUILD_USERS]
+        guild_coll = kwargs[self.GUILD_COLL]
+        user_data = kwargs[self.USER_DATA]
+
         user_data[self.EXP] = user_data[self.EXP] - user_data[self.GOAL]
         guild_users[user_data[self.USER_ID]] = user_data
         await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
                                     {"$set": {self.GUILD_USERS: guild_users}})
 
-    async def _level_update(self, guild_coll, guild_roles, guild_users, user_data, user: discord.Member):
+    async def _level_update(self, **kwargs):
+        guild_users = kwargs[self.GUILD_USERS]
+        guild_coll = kwargs[self.GUILD_COLL]
+        guild_roles = kwargs[self.GUILD_ROLES]
+        user_data = kwargs[self.USER_DATA]
+        user = kwargs[self.USER]
+
         user_data[self.LEVEL] = user_data[self.LEVEL] + 1
-        await self._level_role(guild_roles, guild_users, user_data, user)
+        await self._level_role(guild_roles=guild_roles, guild_users=guild_users, user_data=user_data, user=user)
         await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
                                     {"$set": {self.GUILD_USERS: guild_users}})
 
-    async def _level_role(self, guild_roles, guild_users, user_data, user: discord.Member):
+    async def _level_role(self, **kwargs):
+        guild_users = kwargs[self.GUILD_USERS]
+        guild_roles = kwargs[self.GUILD_ROLES]
+        user_data = kwargs[self.USER_DATA]
+        user = kwargs[self.USER]
         autoroles = []
+
         for role in guild_roles:
             autoroles.append(discord.utils.find(lambda r: str(r.id) == role[self.ROLE_ID], user.guild.roles))
 
@@ -224,8 +269,12 @@ class Levels:
 
         guild_users[user_data[self.USER_ID]] = user_data
 
-    async def _level_goal(self, guild_coll, guild_users, user_data):
+    async def _level_goal(self, **kwargs):
         # 5 * lvl**2 + 50 * lvl + 100 see :this:`xp-logic-label` for more info.
+        guild_users = kwargs[self.GUILD_USERS]
+        guild_coll = kwargs[self.GUILD_COLL]
+        user_data = kwargs[self.USER_DATA]
+
         user_data[self.GOAL] = 5 * user_data[self.LEVEL] ** 2 + 50 * user_data[self.LEVEL] + 100
         guild_users[user_data[self.USER_ID]] = user_data
         await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
@@ -441,11 +490,11 @@ class Levels:
             return
 
         user_data[self.LEVEL] = level
-        await self._level_role(guild_roles, guild_users, user_data, user)
+        await self._level_role(guild_roles=guild_roles, guild_users=guild_users, user_data=user_data, user=user)
         guild_users[user_data[self.USER_ID]] = user_data
         await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
                                     {"$set": {self.GUILD_USERS: guild_users}})
-        await self._level_goal(guild_coll, guild_users, user_data)
+        await self._level_goal(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data)
         await ctx.send("Level of {0} has been changed to {1}".format(user.mention, level))
 
     @lvladmin.group(name="config", autohelp=True)
