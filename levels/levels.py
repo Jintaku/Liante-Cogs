@@ -355,16 +355,16 @@ class Levels:
         i = 0
         while i < 20 and i < len(all_users):
             if i == 0:
-                sufix = "st"
+                suffix = "st"
             elif i == 1:
-                sufix = "nd"
+                suffix = "nd"
             elif i == 2:
-                sufix = "rd"
+                suffix = "rd"
             else:
-                sufix = "th"
+                suffix = "th"
 
             user = all_users[i]
-            user_list += "{0}{1}. <@!{2}>\tLevel: {3}\n".format(i + 1, sufix, user[self.USER_ID], user[self.LEVEL])
+            user_list += "{0}{1}. <@!{2}>\tLevel: {3}\n".format(i + 1, suffix, user[self.USER_ID], user[self.LEVEL])
             i += 1
 
         embed.description = user_list
@@ -479,17 +479,17 @@ class Levels:
         i = 0
         while i < 20 and i < len(all_users):
             if i == 0:
-                sufix = "st"
+                suffix = "st"
             elif i == 1:
-                sufix = "nd"
+                suffix = "nd"
             elif i == 2:
-                sufix = "rd"
+                suffix = "rd"
             else:
-                sufix = "th"
+                suffix = "th"
 
             user = all_users[i]
             user_list += "{0}{1}. <@!{2}>\tLevel: {3}\tMessages: {4}/{5}\n".format(i + 1,
-                                                                                   sufix,
+                                                                                   suffix,
                                                                                    user[self.USER_ID],
                                                                                    user[self.LEVEL],
                                                                                    user[self.MESSAGE_WITH_XP],
