@@ -284,7 +284,7 @@ class Levels:
         top_user = discord.utils.find(lambda m: m.name == all_users[0][self.USERNAME], ctx.guild.members)
         user_list = ""
 
-        embed = discord.Embed(title="Leaderboard")
+        embed = discord.Embed(title="------------------------------**Leaderboard**------------------------------")
         embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
         embed.set_thumbnail(url=top_user.avatar_url)
         embed.timestamp = datetime.utcnow()
