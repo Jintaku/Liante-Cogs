@@ -22,10 +22,11 @@ class Levels:
     COOLDOWN = "cooldown"
     SINGLE_ROLE = "single_role"
     MAKE_ANNOUNCEMENTS = "make_announcements"
-    AUTOROLES = "autoroles"
+    ACTIVE = "active"
 
     ROLE_ID = "role_id"
     ROLE_NAME = "role_name"
+    AUTOROLES = "autoroles"
     DESCRIPTION = "description"
     DEFAULT_DESC = "No description given."
     DEFAULT_ROLE = "No level roles"
@@ -37,6 +38,8 @@ class Levels:
     LEVEL = "level"
     GOAL = "goal"
     LAST_TRIGGER = "last_trigger"
+    MESSAGE_COUNT = "message_count"
+    MESSAGE_WITH_XP = "message_with_xp"
 
     DOCUMENT_NAME = "document_name"
     GUILD_INFO = "guild_info"
@@ -59,7 +62,8 @@ class Levels:
             self.XP_MAX: 25,
             self.COOLDOWN: 60,
             self.SINGLE_ROLE: True,
-            self.MAKE_ANNOUNCEMENTS: False
+            self.MAKE_ANNOUNCEMENTS: False,
+            self.ACTIVE: True
         }
 
         self.config.register_guild(**default_guild, force_registration=True)
@@ -85,10 +89,17 @@ class Levels:
         channel = message.channel
 
         guild_conf = self.config.guild(guild)
+        if not await guild_conf.active():
+            return
         guild_coll = await self._get_guild_coll(guild)
         guild_roles = await self._get_roles(guild)
         guild_users = await self._get_users(guild)
         user_data = await self._get_user_data(guild_conf, guild_coll, guild_users, user)
+
+        user_data[self.MESSAGE_COUNT] = user_data[self.MESSAGE_COUNT] + 1
+        guild_users[user_data[self.USER_ID]] = user_data
+        await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
+                                    {"$set": {self.GUILD_USERS: guild_users}})
 
         last_trigger = user_data[self.LAST_TRIGGER]
         curr_time = time.time()
@@ -146,7 +157,9 @@ class Levels:
                 self.EXP: 0,
                 self.LEVEL: 0,
                 self.GOAL: await guild_conf.xp_goal_base(),
-                self.LAST_TRIGGER: time.time()
+                self.LAST_TRIGGER: time.time(),
+                self.MESSAGE_COUNT: 0,
+                self.MESSAGE_WITH_XP: 0
             }
             guild_users[user_data[self.USER_ID]] = user_data
             await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
@@ -195,6 +208,7 @@ class Levels:
 
         user_data[self.EXP] = user_data[self.EXP] + message_xp
         user_data[self.LAST_TRIGGER] = time.time()
+        user_data[self.MESSAGE_WITH_XP] = user_data[self.MESSAGE_WITH_XP] + 1
         guild_users[user_data[self.USER_ID]] = user_data
         await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
                                     {"$set": {self.GUILD_USERS: guild_users}})
@@ -449,6 +463,42 @@ class Levels:
         await guild_coll.drop()
         await ctx.send("The guild's data has been wiped.")
 
+    @guild.command(aliases=["lb"])
+    async def leaderboard(self, ctx: Context):
+        guild_users = await self._get_users(ctx.guild)
+        all_users = guild_users.values()
+        all_users = sorted(all_users, key=lambda u: (u[self.LEVEL], u[self.EXP]), reverse=True)
+        top_user = discord.utils.find(lambda m: m.name == all_users[0][self.USERNAME], ctx.guild.members)
+        user_list = ""
+
+        embed = discord.Embed(title="------------------------------**Leaderboard**------------------------------")
+        embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
+        embed.set_thumbnail(url=top_user.avatar_url)
+        embed.timestamp = datetime.utcnow()
+
+        i = 0
+        while i < 20 and i < len(all_users):
+            if i == 0:
+                sufix = "st"
+            elif i == 1:
+                sufix = "nd"
+            elif i == 2:
+                sufix = "rd"
+            else:
+                sufix = "th"
+
+            user = all_users[i]
+            user_list += "{0}{1}. <@!{2}>\tLevel: {3}\tMessages: {4}/{5}\n".format(i + 1,
+                                                                                   sufix,
+                                                                                   user[self.USER_ID],
+                                                                                   user[self.LEVEL],
+                                                                                   user[self.MESSAGE_WITH_XP],
+                                                                                   user[self.MESSAGE_COUNT])
+            i += 1
+
+        embed.description = user_list
+        await ctx.send(embed=embed)
+
     @lvladmin.group(autohelp=True)
     async def user(self, ctx: Context):
         """User options"""
@@ -584,6 +634,18 @@ class Levels:
         value = "enabled" if await self.config.guild(ctx.guild).make_announcements() else "disabled"
         await ctx.send("Public announcements are now {}".format(value))
 
+    @config_set.command(name="active")
+    async def set_active(self, ctx: Context, new_value: bool):
+        """
+        Register xp and monitor messages
+
+        If true, the bot will keep record of messages for xp and leveling purposes. Otherwise it will only listen to
+        commands
+        """
+        await self.config.guild(ctx.guild).active.set(new_value)
+        value = "enabled" if await self.config.guild(ctx.guild).active() else "disabled"
+        await ctx.send("XP tracking is now {}".format(value))
+
     @configuration.group(name="get", autohelp=True)
     async def config_get(self, ctx: Context):
         """Check current configuration"""
@@ -658,3 +720,14 @@ class Levels:
         """
         value = "enabled" if await self.config.guild(ctx.guild).make_announcements() else "disabled"
         await ctx.send("Public announcements are {}".format(value))
+
+    @config_get.command(name="active")
+    async def get_active(self, ctx: Context):
+        """
+        Register xp and monitor messages
+
+        If true, the bot will keep record of messages for xp and leveling purposes. Otherwise it will only listen to
+        commands
+        """
+        value = "enabled" if await self.config.guild(ctx.guild).active() else "disabled"
+        await ctx.send("XP tracking is now {}".format(value))
