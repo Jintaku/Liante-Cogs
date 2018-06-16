@@ -464,7 +464,7 @@ class Levels:
         await ctx.send("The guild's data has been wiped.")
 
     @guild.command(aliases=["lb"])
-    async def leaderboard(self, ctx: Context):
+    async def admin_leaderboard(self, ctx: Context):
         guild_users = await self._get_users(ctx.guild)
         all_users = guild_users.values()
         all_users = sorted(all_users, key=lambda u: (u[self.LEVEL], u[self.EXP]), reverse=True)
