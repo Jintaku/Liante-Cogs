@@ -343,6 +343,10 @@ class Levels:
     async def leaderboard(self, ctx: Context):
         guild_users = await self._get_users(ctx.guild)
         all_users = guild_users.values()
+        if len(all_users) == 0:
+            await ctx.send("No user activity registered.")
+            return
+
         all_users = sorted(all_users, key=lambda u: (u[self.LEVEL], u[self.EXP]), reverse=True)
         top_user = discord.utils.find(lambda m: m.name == all_users[0][self.USERNAME], ctx.guild.members)
         user_list = ""
@@ -463,10 +467,14 @@ class Levels:
         await guild_coll.drop()
         await ctx.send("The guild's data has been wiped.")
 
-    @guild.command(aliases=["lb"])
+    @guild.command(name="leaderboard", aliases=["lb"])
     async def admin_leaderboard(self, ctx: Context):
         guild_users = await self._get_users(ctx.guild)
         all_users = guild_users.values()
+        if len(all_users) == 0:
+            await ctx.send("No user activity registered.")
+            return
+
         all_users = sorted(all_users, key=lambda u: (u[self.LEVEL], u[self.EXP]), reverse=True)
         top_user = discord.utils.find(lambda m: m.name == all_users[0][self.USERNAME], ctx.guild.members)
         user_list = ""
