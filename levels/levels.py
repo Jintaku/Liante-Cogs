@@ -348,7 +348,7 @@ class Levels:
             return
 
         all_users = sorted(all_users, key=lambda u: (u[self.LEVEL], u[self.EXP]), reverse=True)
-        top_user = discord.utils.find(lambda m: m.name == all_users[0][self.USERNAME], ctx.guild.members)
+        top_user = discord.utils.find(lambda m: m.display_name == all_users[0][self.USERNAME], ctx.guild.members)
         user_list = ""
 
         embed = discord.Embed(title="------------------------------**Leaderboard**------------------------------")
@@ -476,7 +476,7 @@ class Levels:
             return
 
         all_users = sorted(all_users, key=lambda u: (u[self.LEVEL], u[self.EXP]), reverse=True)
-        top_user = discord.utils.find(lambda m: m.name == all_users[0][self.USERNAME], ctx.guild.members)
+        top_user = discord.utils.find(lambda m: m.display_name == all_users[0][self.USERNAME], ctx.guild.members)
         user_list = ""
 
         embed = discord.Embed(title="------------------------------**Leaderboard**------------------------------")
@@ -520,8 +520,14 @@ class Levels:
         user: Mention the user whose data you want to delete.
         """
         guild_coll = await self._get_guild_coll(ctx.guild)
-        await guild_coll.delete_one({self.USER_ID: user.id})
-        await ctx.send("Data for {} has been deleted!".format(user.mention))
+        guild_users = await self._get_users(ctx.guild)
+        if str(user.id) in guild_users:
+            del guild_users[str(user.id)]
+            await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
+                                        {"$set": {self.GUILD_USERS: guild_users}})
+            await ctx.send("Data for {} has been deleted!".format(user.mention))
+            return
+        await ctx.send("No data for {} has been found".format(user.mention))
 
     @user.group(name="set", autohelp=True)
     async def user_set(self, ctx: Context):
