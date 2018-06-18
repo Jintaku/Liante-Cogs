@@ -377,7 +377,7 @@ class Levels:
 
         return embed
 
-    @commands.command(aliases=["lb"])
+    @commands.command(name="levelboard", aliases=["lb", "lvlboard"])
     async def leaderboard(self, ctx: Context):
         guild_coll = await self._get_guild_coll(ctx.guild)
         guild_users = await self._get_users(guild_coll=guild_coll)
@@ -507,7 +507,7 @@ class Levels:
         await guild_coll.drop()
         await ctx.send("The guild's data has been wiped.")
 
-    @guild.command(name="leaderboard", aliases=["lb"])
+    @guild.command(name="levelboard", aliases=["lb", "lvlboard"])
     async def admin_leaderboard(self, ctx: Context):
         guild_coll = await self._get_guild_coll(ctx.guild)
         guild_users = await self._get_users(guild_coll=guild_coll)
