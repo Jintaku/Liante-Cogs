@@ -71,7 +71,7 @@ class Levels:
         self.client = motor.motor_asyncio.AsyncIOMotorClient()
         self.levels_db = self.client.levels
 
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message):
         # ignore bots, dms, and red commands
         if message.author.bot:
             return
@@ -92,9 +92,10 @@ class Levels:
         if not await guild_conf.active():
             return
         guild_coll = await self._get_guild_coll(guild)
-        guild_roles = await self._get_roles(guild)
-        guild_users = await self._get_users(guild)
-        user_data = await self._get_user_data(guild_conf, guild_coll, guild_users, user)
+        guild_roles = await self._get_roles(guild_coll=guild_coll)
+        guild_users = await self._get_users(guild_coll=guild_coll)
+        user_data = await self._get_user_data(guild_conf=guild_conf, guild_coll=guild_coll,
+                                              guild_users=guild_users, user=user)
 
         user_data[self.MESSAGE_COUNT] = user_data[self.MESSAGE_COUNT] + 1
         guild_users[user_data[self.USER_ID]] = user_data
@@ -116,6 +117,22 @@ class Levels:
                                           user=user)
         if level_up and await self.config.guild(guild).make_announcements():
             await channel.send("Congratulations {0}, you're now level {1}".format(user.mention, user_data[self.LEVEL]))
+
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        if before.display_name == after.display_name:
+            return
+
+        guild = before.guild
+        guild_conf = self.config.guild(guild)
+        guild_coll = await self._get_guild_coll(guild)
+        guild_users = await self._get_users(guild_coll=guild_coll)
+        user_data = await self._get_user_data(guild_conf=guild_conf, guild_coll=guild_coll,
+                                              guild_users=guild_users, user=before)
+
+        user_data[self.USERNAME] = after.display_name
+        guild_users[user_data[self.USER_ID]] = user_data
+        guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
+                              {"$set": {self.GUILD_USERS: guild_users}})
 
     async def _get_guild_coll(self, guild: discord.Guild):
         """
@@ -141,10 +158,15 @@ class Levels:
             await guild_coll.insert_one(guild_roles)
         return guild_coll
 
-    async def _get_user_data(self, guild_conf, guild_coll, guild_users, user: discord.Member):
+    async def _get_user_data(self, **kwargs):
         """
         Each user is represented by a document inside the guild's collection
         """
+        guild_conf = kwargs[self.GUILD_CONF]
+        guild_coll = kwargs[self.GUILD_COLL]
+        guild_users = kwargs[self.GUILD_USERS]
+        user = kwargs[self.USER]
+
         if user.bot:
             return None
         try:
@@ -166,14 +188,14 @@ class Levels:
                                         {"$set": {self.GUILD_USERS: guild_users}})
         return user_data
 
-    async def _get_roles(self, guild: discord.Guild):
-        guild_coll = await self._get_guild_coll(guild)
+    async def _get_roles(self, **kwargs):
+        guild_coll = kwargs[self.GUILD_COLL]
         cursor = await guild_coll.find_one({self.DOCUMENT_NAME: self.GUILD_ROLES})
         guild_roles = cursor[self.GUILD_ROLES]
         return guild_roles
 
-    async def _get_users(self, guild: discord.Guild):
-        guild_coll = await self._get_guild_coll(guild)
+    async def _get_users(self, **kwargs):
+        guild_coll = kwargs[self.GUILD_COLL]
         cursor = await guild_coll.find_one({self.DOCUMENT_NAME: self.GUILD_USERS})
         guild_users = cursor[self.GUILD_USERS]
         return guild_users
@@ -309,10 +331,11 @@ class Levels:
             return
 
         guild = ctx.guild
-        guild_config = self.config.guild(guild)
+        guild_conf = self.config.guild(guild)
         guild_coll = await self._get_guild_coll(guild)
-        guild_users = await self._get_users(ctx.guild)
-        user_data = await self._get_user_data(guild_config, guild_coll, guild_users, user)
+        guild_users = await self._get_users(guild_coll=guild_coll)
+        user_data = await self._get_user_data(guild_conf=guild_conf, guild_coll=guild_coll,
+                                              guild_users=guild_users, user=user)
         if user_data is None:
             await ctx.send("User not registered in the database")
             return
@@ -341,7 +364,8 @@ class Levels:
 
     @commands.command(aliases=["lb"])
     async def leaderboard(self, ctx: Context):
-        guild_users = await self._get_users(ctx.guild)
+        guild_coll = await self._get_guild_coll(ctx.guild)
+        guild_users = await self._get_users(guild_coll=guild_coll)
         all_users = guild_users.values()
         if len(all_users) == 0:
             await ctx.send("No user activity registered.")
@@ -394,9 +418,10 @@ class Levels:
     @roles.command(name="list")
     async def roles_list(self, ctx: Context):
         """Shows all configured roles"""
-        roles = await self._get_roles(ctx.guild)
+        guild_coll = await self._get_guild_coll(ctx.guild)
+        guild_roles = await self._get_roles(guild_coll=guild_coll)
         embed = discord.Embed(title="Configured Roles:")
-        for role in roles:
+        for role in guild_roles:
             embed.add_field(name="Level {0} - {1}".format(role[self.LEVEL], role[self.ROLE_NAME]),
                             value="{}".format(role[self.DESCRIPTION]),
                             inline=False)
@@ -417,8 +442,8 @@ class Levels:
         """
         role_id = str(new_role.id)
         role_name = new_role.name
-        guild_roles = await self._get_roles(ctx.guild)
         guild_coll = await self._get_guild_coll(ctx.guild)
+        guild_roles = await self._get_roles(guild_coll=guild_coll)
 
         for role in guild_roles:
             if role[self.ROLE_ID] == role_id or role[self.LEVEL] == level:
@@ -447,8 +472,8 @@ class Levels:
         Removes a previously set up automatic role
         """
         role_id = str(old_role.id)
-        guild_roles = await self._get_roles(ctx.guild)
         guild_coll = await self._get_guild_coll(ctx.guild)
+        guild_roles = await self._get_roles(guild_coll=guild_coll)
 
         for role in guild_roles:
             if role_id == role[self.ROLE_ID]:
@@ -469,7 +494,8 @@ class Levels:
 
     @guild.command(name="leaderboard", aliases=["lb"])
     async def admin_leaderboard(self, ctx: Context):
-        guild_users = await self._get_users(ctx.guild)
+        guild_coll = await self._get_guild_coll(ctx.guild)
+        guild_users = await self._get_users(guild_coll=guild_coll)
         all_users = guild_users.values()
         if len(all_users) == 0:
             await ctx.send("No user activity registered.")
@@ -520,7 +546,7 @@ class Levels:
         user: Mention the user whose data you want to delete.
         """
         guild_coll = await self._get_guild_coll(ctx.guild)
-        guild_users = await self._get_users(ctx.guild)
+        guild_users = await self._get_users(guild_coll=guild_coll)
         if str(user.id) in guild_users:
             del guild_users[str(user.id)]
             await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
@@ -546,9 +572,10 @@ class Levels:
 
         guild_config = self.config.guild(ctx.guild)
         guild_coll = await self._get_guild_coll(ctx.guild)
-        guild_roles = await self._get_roles(ctx.guild)
-        guild_users = await self._get_users(ctx.guild)
-        user_data = await self._get_user_data(guild_config, guild_coll, guild_users, user)
+        guild_roles = await self._get_roles(guild_coll=guild_coll)
+        guild_users = await self._get_users(guild_coll=guild_coll)
+        user_data = await self._get_user_data(guild_config=guild_config, guild_coll=guild_coll,
+                                              guild_users=guild_users, user=user)
         if user_data is None:
             await ctx.send("No data found for {}".format(user.mention))
             return
