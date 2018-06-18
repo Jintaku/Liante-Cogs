@@ -92,7 +92,6 @@ class Levels:
         if not await guild_conf.active():
             return
         guild_coll = await self._get_guild_coll(guild)
-        guild_roles = await self._get_roles(guild_coll=guild_coll)
         guild_users = await self._get_users(guild_coll=guild_coll)
         user_data = await self._get_user_data(guild_conf=guild_conf, guild_coll=guild_coll,
                                               guild_users=guild_users, user=user)
@@ -111,7 +110,6 @@ class Levels:
 
         level_up = await self._process_xp(guild_conf=guild_conf,
                                           guild_coll=guild_coll,
-                                          guild_roles=guild_roles,
                                           guild_users=guild_users,
                                           user_data=user_data,
                                           user=user)
@@ -219,7 +217,6 @@ class Levels:
         user_data = kwargs[self.USER_DATA]
         guild_users = kwargs[self.GUILD_USERS]
         guild_coll = kwargs[self.GUILD_COLL]
-        guild_roles = kwargs[self.GUILD_ROLES]
         user = kwargs[self.USER]
 
         xp_min = await guild_conf.xp_min()
@@ -237,7 +234,6 @@ class Levels:
 
         if user_data[self.EXP] >= user_data[self.GOAL]:
             await self._level_up(guild_coll=guild_coll,
-                                 guild_roles=guild_roles,
                                  guild_users=guild_users,
                                  user_data=user_data,
                                  user=user)
@@ -248,13 +244,11 @@ class Levels:
         # Separated for admin commands implementation
         guild_users = kwargs[self.GUILD_USERS]
         guild_coll = kwargs[self.GUILD_COLL]
-        guild_roles = kwargs[self.GUILD_ROLES]
         user_data = kwargs[self.USER_DATA]
         user = kwargs[self.USER]
 
         await self._level_xp(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data)
         await self._level_update(guild_coll=guild_coll,
-                                 guild_roles=guild_roles,
                                  guild_users=guild_users,
                                  user_data=user_data,
                                  user=user)
@@ -273,20 +267,20 @@ class Levels:
     async def _level_update(self, **kwargs):
         guild_users = kwargs[self.GUILD_USERS]
         guild_coll = kwargs[self.GUILD_COLL]
-        guild_roles = kwargs[self.GUILD_ROLES]
         user_data = kwargs[self.USER_DATA]
         user = kwargs[self.USER]
 
         user_data[self.LEVEL] = user_data[self.LEVEL] + 1
-        await self._level_role(guild_roles=guild_roles, guild_users=guild_users, user_data=user_data, user=user)
+        await self._level_role(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data, user=user)
         await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
                                     {"$set": {self.GUILD_USERS: guild_users}})
 
     async def _level_role(self, **kwargs):
+        guild_coll = kwargs[self.GUILD_COLL]
         guild_users = kwargs[self.GUILD_USERS]
-        guild_roles = kwargs[self.GUILD_ROLES]
         user_data = kwargs[self.USER_DATA]
         user = kwargs[self.USER]
+        guild_roles = await self._get_roles(guild_coll=guild_coll)
         autoroles = []
 
         for role in guild_roles:
@@ -315,6 +309,27 @@ class Levels:
         guild_users[user_data[self.USER_ID]] = user_data
         await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
                                     {"$set": {self.GUILD_USERS: guild_users}})
+
+    async def _give_xp(self, **kwargs):
+        guild_coll = kwargs[self.GUILD_COLL]
+        guild_users = kwargs[self.GUILD_USERS]
+        user_data = kwargs[self.USER_DATA]
+        user = kwargs[self.USER]
+        exp = kwargs[self.EXP]
+
+        user_data[self.EXP] += exp
+        guild_users[user_data[self.USER_ID]] = user_data
+        guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
+                              {"$set": {self.GUILD_USERS: guild_users}})
+
+        count = 0
+        while user_data[self.EXP] >= user_data[self.GOAL]:
+            await self._level_up(guild_coll=guild_coll,
+                                 guild_users=guild_users,
+                                 user_data=user_data,
+                                 user=user)
+            count += 1
+        return count
 
     @commands.guild_only()
     @commands.command(name="level", aliases=["lvl"])
@@ -392,7 +407,7 @@ class Levels:
                 suffix = "th"
 
             user = all_users[i]
-            user_list += "{0}{1}. <@!{2}>\tLevel: {3}\n".format(i + 1, suffix, user[self.USER_ID], user[self.LEVEL])
+            user_list += "{0}{1}. <@!{2}>\t**lvl**: {3}\n".format(i + 1, suffix, user[self.USER_ID], user[self.LEVEL])
             i += 1
 
         embed.description = user_list
@@ -522,12 +537,12 @@ class Levels:
                 suffix = "th"
 
             user = all_users[i]
-            user_list += "{0}{1}. <@!{2}>\tLevel: {3}\tMessages: {4}/{5}\n".format(i + 1,
-                                                                                   suffix,
-                                                                                   user[self.USER_ID],
-                                                                                   user[self.LEVEL],
-                                                                                   user[self.MESSAGE_WITH_XP],
-                                                                                   user[self.MESSAGE_COUNT])
+            user_list += "{0}{1}. <@!{2}>\t**lvl**: {3}\t**msgs**: {4}/{5}\n".format(i + 1,
+                                                                                     suffix,
+                                                                                     user[self.USER_ID],
+                                                                                     user[self.LEVEL],
+                                                                                     user[self.MESSAGE_WITH_XP],
+                                                                                     user[self.MESSAGE_COUNT])
             i += 1
 
         embed.description = user_list
@@ -555,12 +570,7 @@ class Levels:
             return
         await ctx.send("No data for {} has been found".format(user.mention))
 
-    @user.group(name="set", autohelp=True)
-    async def user_set(self, ctx: Context):
-        """Edit user data."""
-        pass
-
-    @user_set.command(name="level", aliases=["lvl"])
+    @user.command(name="setlevel", aliases=["lvl", "level"])
     async def set_level(self, ctx: Context, user: discord.Member, level: int):
         """
         Changes the level of a user.
@@ -587,6 +597,28 @@ class Levels:
                                     {"$set": {self.GUILD_USERS: guild_users}})
         await self._level_goal(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data)
         await ctx.send("Level of {0} has been changed to {1}".format(user.mention, level))
+
+    @user.command(name="givexp", aliases=["xp"])
+    async def give_xp(self, ctx: Context, user: discord.User, xp: int, *, reason: str=None):
+        guild_conf = self.config.guild(ctx.guild)
+        guild_coll = await self._get_guild_coll(ctx.guild)
+        guild_users = await self._get_users(guild_coll=guild_coll)
+        user_data = await self._get_user_data(guild_conf=guild_conf, guild_coll=guild_coll,
+                                              guild_users=guild_users, user=user)
+
+        count = await self._give_xp(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data,
+                                    user=user, exp=xp)
+
+        if reason is not None:
+            reason = " for " + reason
+        else:
+            reason = ""
+        await ctx.send("{0.mention} has received {1} xp{2}!".format(user, xp, reason))
+
+        if count != 0:
+            levels = "level" if count == 1 else "levels"
+            await ctx.send("{0} {1} were earned by that. New shiny level: {2}".format(count, levels,
+                                                                                      user_data[self.LEVEL]))
 
     @lvladmin.group(name="config", autohelp=True)
     async def configuration(self, ctx: Context):
