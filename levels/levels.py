@@ -271,6 +271,9 @@ class Levels:
         await self._level_role(guild_users=guild_users, user_data=user_data, user=user)
 
     async def _level_role(self, **kwargs):
+        """
+        Checks if the user gets a role by leveling up
+        """
         guild_users = kwargs[self.GUILD_USERS]
         user_data = kwargs[self.USER_DATA]
         user: discord.Member = kwargs[self.USER]
@@ -366,6 +369,9 @@ class Levels:
         await ctx.send(embed=embed)
 
     async def _level_embed(self, ctx: Context, user: discord.Member, user_data):
+        """
+        Internal method to format the level card embed
+        """
         current_lvl = user_data[self.LEVEL]
         current_exp = user_data[self.EXP]
         next_goal = user_data[self.GOAL]
@@ -386,6 +392,9 @@ class Levels:
 
     @commands.command(name="levelboard", aliases=["lb", "lvlboard"])
     async def leaderboard(self, ctx: Context):
+        """
+        Display a leaderboard of the top 20 members in the guild
+        """
         guild_coll = await self._get_guild_coll(ctx.guild)
         guild_users = await self._get_users(guild_coll=guild_coll)
         all_users = guild_users.values()
@@ -516,6 +525,13 @@ class Levels:
 
     @guild.command(name="levelboard", aliases=["lb", "lvlboard"])
     async def admin_leaderboard(self, ctx: Context):
+        """
+        Display a leaderboard with the top 20 members of the guild
+
+        this one contains a xpmsgs / msgs column for statistics. Msgs is the total amount of messages sent by a user and
+        xpmsgs is the amount of those messages sent off cooldown and awarded xp. It helps when tuning the cooldown and
+        xp settings.
+        """
         guild_coll = await self._get_guild_coll(ctx.guild)
         guild_users = await self._get_users(guild_coll=guild_coll)
         all_users = guild_users.values()
@@ -565,6 +581,8 @@ class Levels:
         """
         Deletes ***all*** stored data of a user.
 
+        At the moment this command does not ask for confirmation, so use it carefully.
+
         user: Mention the user whose data you want to delete.
         """
         guild_coll = await self._get_guild_coll(ctx.guild)
@@ -605,6 +623,17 @@ class Levels:
 
     @user.command(name="givexp", aliases=["xp"])
     async def give_xp(self, ctx: Context, user: discord.Member, xp: int, *, reason: str = None):
+        """
+        Gives xp to a user
+
+        the new level and role will be calculated and assigned automatically
+
+        user: mention the user to whom you want to award xp
+
+        xp: the amount to xp you want to give them
+
+        reason: if there's a particular reason why they deserve it
+        """
         guild_conf = self.config.guild(ctx.guild)
         guild_coll = await self._get_guild_coll(ctx.guild)
         guild_users = await self._get_users(guild_coll=guild_coll)
