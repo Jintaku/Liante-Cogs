@@ -80,7 +80,7 @@ class Levels:
             return
 
         prefixes = await Config.get_core_conf().prefix()
-        for prefix in prefixes:
+        async for prefix in prefixes:
             if message.content.startswith(prefix):
                 return
 
@@ -98,8 +98,6 @@ class Levels:
 
         user_data[self.MESSAGE_COUNT] = user_data[self.MESSAGE_COUNT] + 1
         guild_users[user_data[self.USER_ID]] = user_data
-        await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
-                                    {"$set": {self.GUILD_USERS: guild_users}})
 
         last_trigger = user_data[self.LAST_TRIGGER]
         curr_time = time.time()
@@ -109,14 +107,17 @@ class Levels:
             return
 
         level_up = await self._process_xp(guild_conf=guild_conf,
-                                          guild_coll=guild_coll,
                                           guild_users=guild_users,
                                           user_data=user_data,
                                           user=user)
+        await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
+                                    {"$set": {self.GUILD_USERS: guild_users}})
+
         if level_up and await self.config.guild(guild).make_announcements():
             await channel.send("Congratulations {0}, you're now level {1}".format(user.mention, user_data[self.LEVEL]))
 
     async def on_member_update(self, before: discord.Member, after: discord.Member):
+        # this should handle any nickname and username changes
         if before.display_name == after.display_name:
             return
 
@@ -187,12 +188,18 @@ class Levels:
         return user_data
 
     async def _get_roles(self, **kwargs):
+        """
+        This gets all the configured auto-roles for a given guild.
+        """
         guild_coll = kwargs[self.GUILD_COLL]
         cursor = await guild_coll.find_one({self.DOCUMENT_NAME: self.GUILD_ROLES})
         guild_roles = cursor[self.GUILD_ROLES]
         return guild_roles
 
     async def _get_users(self, **kwargs):
+        """
+        This gets all the users that have been active and therefore added to the database.
+        """
         guild_coll = kwargs[self.GUILD_COLL]
         cursor = await guild_coll.find_one({self.DOCUMENT_NAME: self.GUILD_USERS})
         guild_users = cursor[self.GUILD_USERS]
@@ -216,7 +223,6 @@ class Levels:
         guild_conf = kwargs[self.GUILD_CONF]
         user_data = kwargs[self.USER_DATA]
         guild_users = kwargs[self.GUILD_USERS]
-        guild_coll = kwargs[self.GUILD_COLL]
         user = kwargs[self.USER]
 
         xp_min = await guild_conf.xp_min()
@@ -229,12 +235,9 @@ class Levels:
         user_data[self.LAST_TRIGGER] = time.time()
         user_data[self.MESSAGE_WITH_XP] = user_data[self.MESSAGE_WITH_XP] + 1
         guild_users[user_data[self.USER_ID]] = user_data
-        await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
-                                    {"$set": {self.GUILD_USERS: guild_users}})
 
         if user_data[self.EXP] >= user_data[self.GOAL]:
-            await self._level_up(guild_coll=guild_coll,
-                                 guild_users=guild_users,
+            await self._level_up(guild_users=guild_users,
                                  user_data=user_data,
                                  user=user)
             return True
@@ -243,75 +246,82 @@ class Levels:
     async def _level_up(self, **kwargs):
         # Separated for admin commands implementation
         guild_users = kwargs[self.GUILD_USERS]
-        guild_coll = kwargs[self.GUILD_COLL]
         user_data = kwargs[self.USER_DATA]
         user = kwargs[self.USER]
 
-        await self._level_xp(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data)
-        await self._level_update(guild_coll=guild_coll,
-                                 guild_users=guild_users,
+        await self._level_xp(guild_users=guild_users, user_data=user_data)
+        await self._level_update(guild_users=guild_users,
                                  user_data=user_data,
                                  user=user)
-        await self._level_goal(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data)
+        await self._level_goal(guild_users=guild_users, user_data=user_data)
 
     async def _level_xp(self, **kwargs):
         guild_users = kwargs[self.GUILD_USERS]
-        guild_coll = kwargs[self.GUILD_COLL]
         user_data = kwargs[self.USER_DATA]
 
         user_data[self.EXP] = user_data[self.EXP] - user_data[self.GOAL]
         guild_users[user_data[self.USER_ID]] = user_data
-        await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
-                                    {"$set": {self.GUILD_USERS: guild_users}})
 
     async def _level_update(self, **kwargs):
         guild_users = kwargs[self.GUILD_USERS]
-        guild_coll = kwargs[self.GUILD_COLL]
         user_data = kwargs[self.USER_DATA]
         user = kwargs[self.USER]
 
         user_data[self.LEVEL] = user_data[self.LEVEL] + 1
-        await self._level_role(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data, user=user)
-        await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
-                                    {"$set": {self.GUILD_USERS: guild_users}})
+        await self._level_role(guild_users=guild_users, user_data=user_data, user=user)
 
     async def _level_role(self, **kwargs):
-        guild_coll = kwargs[self.GUILD_COLL]
         guild_users = kwargs[self.GUILD_USERS]
         user_data = kwargs[self.USER_DATA]
-        user = kwargs[self.USER]
+        user: discord.Member = kwargs[self.USER]
+        guild_coll = await self._get_guild_coll(user.guild)
         guild_roles = await self._get_roles(guild_coll=guild_coll)
         autoroles = []
 
-        for role in guild_roles:
+        if len(guild_roles) == 0:
+            return
+
+        async for role in guild_roles:
             autoroles.append(discord.utils.find(lambda r: str(r.id) == role[self.ROLE_ID], user.guild.roles))
 
-        reversed_roles = sorted(guild_roles, key=lambda k: k[self.LEVEL], reverse=True)
-        for role in reversed_roles:
-            if user_data[self.LEVEL] >= role[self.LEVEL]:
-                new_role = discord.utils.find(lambda r: str(r.id) == role[self.ROLE_ID], user.guild.roles)
-                for user_role in user.roles:
-                    if user_role in autoroles:
-                        await user.remove_roles(user_role, reason="level up")
-                await user.add_roles(new_role, reason="level up")
-                user_data[self.ROLE_NAME] = role[self.ROLE_NAME]
+        async def _assign_role(index):
+            new_role = autoroles[index]
+            async for _user_role in user.roles:
+                if _user_role in autoroles:
+                    await user.remove_roles(_user_role, reason="level up")
+            await user.add_roles(new_role, reason="level up")
+            user_data[self.ROLE_NAME] = guild_roles[index][self.ROLE_NAME]
+
+        if user_data[self.LEVEL] < guild_roles[0][self.LEVEL] and user_data[self.ROLE_NAME] != self.DEFAULT_ROLE:
+            async for user_role in user.roles:
+                if user_role in autoroles:
+                    await user.remove_roles(user_role, reason="levels lost")
+            user_data[self.ROLE_NAME] = self.DEFAULT_ROLE
+
+        i = 0
+        while i < len(guild_roles) - 1:
+            if guild_roles[i][self.LEVEL] <= user_data[self.LEVEL] < guild_roles[i + 1][self.LEVEL]:
+                if user_data[self.ROLE_NAME] != guild_roles[i][self.ROLE_NAME]:
+                    await _assign_role(i)
                 break
+            i += 1
+
+        i = -1
+        if guild_roles[i][self.LEVEL] <= user_data[self.LEVEL]:
+            if user_data[self.ROLE_NAME] != guild_roles[i][self.ROLE_NAME]:
+                await _assign_role(i)
 
         guild_users[user_data[self.USER_ID]] = user_data
 
     async def _level_goal(self, **kwargs):
         # 5 * lvl**2 + 50 * lvl + 100 see :this:`xp-logic-label` for more info.
         guild_users = kwargs[self.GUILD_USERS]
-        guild_coll = kwargs[self.GUILD_COLL]
         user_data = kwargs[self.USER_DATA]
 
         user_data[self.GOAL] = 5 * user_data[self.LEVEL] ** 2 + 50 * user_data[self.LEVEL] + 100
         guild_users[user_data[self.USER_ID]] = user_data
-        await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
-                                    {"$set": {self.GUILD_USERS: guild_users}})
 
     async def _give_xp(self, **kwargs):
-        guild_coll = kwargs[self.GUILD_COLL]
         guild_users = kwargs[self.GUILD_USERS]
         user_data = kwargs[self.USER_DATA]
         user = kwargs[self.USER]
@@ -319,13 +329,10 @@ class Levels:
 
         user_data[self.EXP] += exp
         guild_users[user_data[self.USER_ID]] = user_data
-        guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
-                              {"$set": {self.GUILD_USERS: guild_users}})
 
         count = 0
         while user_data[self.EXP] >= user_data[self.GOAL]:
-            await self._level_up(guild_coll=guild_coll,
-                                 guild_users=guild_users,
+            await self._level_up(guild_users=guild_users,
                                  user_data=user_data,
                                  user=user)
             count += 1
@@ -460,7 +467,7 @@ class Levels:
         guild_coll = await self._get_guild_coll(ctx.guild)
         guild_roles = await self._get_roles(guild_coll=guild_coll)
 
-        for role in guild_roles:
+        async for role in guild_roles:
             if role[self.ROLE_ID] == role_id or role[self.LEVEL] == level:
                 await ctx.send("**{0}** has already been assigned to level {1}!".format(role[self.ROLE_NAME],
                                                                                         role[self.LEVEL]))
@@ -490,7 +497,7 @@ class Levels:
         guild_coll = await self._get_guild_coll(ctx.guild)
         guild_roles = await self._get_roles(guild_coll=guild_coll)
 
-        for role in guild_roles:
+        async for role in guild_roles:
             if role_id == role[self.ROLE_ID]:
                 guild_roles.remove(role)
                 guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_ROLES},
@@ -580,34 +587,34 @@ class Levels:
         level: The new user level.
         """
 
-        guild_config = self.config.guild(ctx.guild)
+        guild_conf = self.config.guild(ctx.guild)
         guild_coll = await self._get_guild_coll(ctx.guild)
-        guild_roles = await self._get_roles(guild_coll=guild_coll)
         guild_users = await self._get_users(guild_coll=guild_coll)
-        user_data = await self._get_user_data(guild_config=guild_config, guild_coll=guild_coll,
+        user_data = await self._get_user_data(guild_conf=guild_conf, guild_coll=guild_coll,
                                               guild_users=guild_users, user=user)
         if user_data is None:
             await ctx.send("No data found for {}".format(user.mention))
             return
 
         user_data[self.LEVEL] = level
-        await self._level_role(guild_roles=guild_roles, guild_users=guild_users, user_data=user_data, user=user)
-        guild_users[user_data[self.USER_ID]] = user_data
+        await self._level_role(guild_users=guild_users, user_data=user_data, user=user)
+        await self._level_goal(guild_users=guild_users, user_data=user_data)
         await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
                                     {"$set": {self.GUILD_USERS: guild_users}})
-        await self._level_goal(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data)
         await ctx.send("Level of {0} has been changed to {1}".format(user.mention, level))
 
     @user.command(name="givexp", aliases=["xp"])
-    async def give_xp(self, ctx: Context, user: discord.User, xp: int, *, reason: str=None):
+    async def give_xp(self, ctx: Context, user: discord.Member, xp: int, *, reason: str = None):
         guild_conf = self.config.guild(ctx.guild)
         guild_coll = await self._get_guild_coll(ctx.guild)
         guild_users = await self._get_users(guild_coll=guild_coll)
         user_data = await self._get_user_data(guild_conf=guild_conf, guild_coll=guild_coll,
                                               guild_users=guild_users, user=user)
 
-        count = await self._give_xp(guild_coll=guild_coll, guild_users=guild_users, user_data=user_data,
+        count = await self._give_xp(guild_users=guild_users, user_data=user_data,
                                     user=user, exp=xp)
+        await guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_USERS},
+                                    {"$set": {self.GUILD_USERS: guild_users}})
 
         if reason is not None:
             reason = " for " + reason
