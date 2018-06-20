@@ -469,7 +469,9 @@ class Levels:
         """
         Adds a new automatic role
 
-        The roles are by default non-cumulative. Change the mode with [p]la config set mode [True|False]
+        The roles are by default non-cumulative. Cumulative roles are not yet implemented
+
+        Use quotation marks and case sensitive role name in case it can't be mentioned
         """
         role_id = str(new_role.id)
         role_name = new_role.name
@@ -501,6 +503,8 @@ class Levels:
     async def roles_remove(self, ctx: Context, old_role: discord.Role):
         """
         Removes a previously set up automatic role
+
+        Use quotation marks and case sensitive role name in case it can't be mentioned
         """
         role_id = str(old_role.id)
         guild_coll = await self._get_guild_coll(ctx.guild)
@@ -518,7 +522,11 @@ class Levels:
 
     @guild.command(name="reset")
     async def guild_reset(self, ctx: Context):
-        """Deletes ***all*** stored data of the guild."""
+        """
+        Deletes ***all*** stored data of the guild.
+
+        This doesn't ask for confirmation and deletes the whole player database
+        """
         guild_coll = await self._get_guild_coll(ctx.guild)
         await guild_coll.drop()
         await ctx.send("The guild's data has been wiped.")
@@ -663,7 +671,11 @@ class Levels:
 
     @configuration.command(name="reset")
     async def config_reset(self, ctx: Context):
-        """Reset all configuration to defaults"""
+        """
+        Reset **all** configuration to defaults
+
+        this doesn't ask for confirmation and does not affect the player database
+        """
         await self.config.guild(ctx.guild).clear()
         await ctx.send("Configuration defaults have been restored")
 
@@ -725,9 +737,11 @@ class Levels:
     @config_set.command(name="mode")
     async def set_role_mode(self, ctx: Context, new_value: bool):
         """
-        Autoroles handling
+        Not yet implemented
 
         Determines if old roles should be removed when a new one is gained by leveling up. Set False to keep them.
+
+        ***this has not yet been implemented***
         """
         await self.config.guild(ctx.guild).single_role.set(new_value)
         await ctx.send("Role mode value updated")
@@ -813,9 +827,11 @@ class Levels:
     @config_get.command(name="mode")
     async def get_role_mode(self, ctx: Context):
         """
-        Autoroles handling
+        Not yet implemented
 
         Determines if old roles should be removed when a new one is gained by leveling up. Set False to keep them.
+
+        ***this has not yet been implemented***
         """
         value = "single" if await self.config.guild(ctx.guild).single_role() else "multi"
         await ctx.send("The role mode is set to: {}-role".format(value))
