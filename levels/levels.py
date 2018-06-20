@@ -80,7 +80,7 @@ class Levels:
             return
 
         prefixes = await Config.get_core_conf().prefix()
-        async for prefix in prefixes:
+        for prefix in prefixes:
             if message.content.startswith(prefix):
                 return
 
@@ -281,19 +281,19 @@ class Levels:
         if len(guild_roles) == 0:
             return
 
-        async for role in guild_roles:
+        for role in guild_roles:
             autoroles.append(discord.utils.find(lambda r: str(r.id) == role[self.ROLE_ID], user.guild.roles))
 
         async def _assign_role(index):
             new_role = autoroles[index]
-            async for _user_role in user.roles:
+            for _user_role in user.roles:
                 if _user_role in autoroles:
                     await user.remove_roles(_user_role, reason="level up")
             await user.add_roles(new_role, reason="level up")
             user_data[self.ROLE_NAME] = guild_roles[index][self.ROLE_NAME]
 
         if user_data[self.LEVEL] < guild_roles[0][self.LEVEL] and user_data[self.ROLE_NAME] != self.DEFAULT_ROLE:
-            async for user_role in user.roles:
+            for user_role in user.roles:
                 if user_role in autoroles:
                     await user.remove_roles(user_role, reason="levels lost")
             user_data[self.ROLE_NAME] = self.DEFAULT_ROLE
@@ -467,7 +467,7 @@ class Levels:
         guild_coll = await self._get_guild_coll(ctx.guild)
         guild_roles = await self._get_roles(guild_coll=guild_coll)
 
-        async for role in guild_roles:
+        for role in guild_roles:
             if role[self.ROLE_ID] == role_id or role[self.LEVEL] == level:
                 await ctx.send("**{0}** has already been assigned to level {1}!".format(role[self.ROLE_NAME],
                                                                                         role[self.LEVEL]))
@@ -497,7 +497,7 @@ class Levels:
         guild_coll = await self._get_guild_coll(ctx.guild)
         guild_roles = await self._get_roles(guild_coll=guild_coll)
 
-        async for role in guild_roles:
+        for role in guild_roles:
             if role_id == role[self.ROLE_ID]:
                 guild_roles.remove(role)
                 guild_coll.update_one({self.DOCUMENT_NAME: self.GUILD_ROLES},
