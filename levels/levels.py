@@ -693,7 +693,7 @@ class Levels:
         await self.config.guild(ctx.guild).set_raw(self.LEADERBOARD_MAX, value=value)
         await ctx.send("Leaderboard's max entries updated")
 
-    @config_set.command(name="mode")
+    @config_set.command(name="mode", enabled=False, hidden=True)
     async def set_role_mode(self, ctx: Context, value: bool):
         """
         Not yet implemented
@@ -791,7 +791,7 @@ class Levels:
         value = await self.config.guild(ctx.guild).get_raw(self.LEADERBOARD_MAX)
         await ctx.send("Leaderboard's max entries: {}".format(value))
 
-    @config_get.command(name="mode")
+    @config_get.command(name="mode", enabled=False, hidden=True)
     async def get_role_mode(self, ctx: Context):
         """
         Not yet implemented
