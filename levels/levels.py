@@ -25,7 +25,6 @@ class Levels:
 
     ROLE_ID = "role_id"
     ROLE_NAME = "role_name"
-    AUTOROLES = "autoroles"
     DESCRIPTION = "description"
     DEFAULT_DESC = "No description given."
     DEFAULT_ROLE = "No level roles"
@@ -43,13 +42,7 @@ class Levels:
     MESSAGE_COUNT = "message_count"
     MESSAGE_WITH_XP = "message_with_xp"
 
-    DOCUMENT_NAME = "document_name"
-    GUILD_INFO = "guild_info"
-    GUILD_ID = "guild_id"
-    GUILD_NAME = "guild_name"
-    GUILD_MEMBERS = "guild_members"
     GUILD_ROLES = "guild_roles"
-    LEADERBOARD = "leaderboard"
     LEADERBOARD_MAX = "leaderboard_max"
 
     GUILD_CONFIG = "guild_config"
@@ -69,7 +62,6 @@ class Levels:
             self.ACTIVE: True,
             self.LEADERBOARD_MAX: 20,
             self.GUILD_ROLES: [],
-            self.LEADERBOARD: []
         }
 
         default_member = {
