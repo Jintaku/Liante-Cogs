@@ -551,9 +551,8 @@ class Levels:
 
         member: Mention the member whose data you want to delete.
         """
-        guild_config = await self._get_guild_config(ctx.guild)
-        member_data = await self._get_member_data(guild_config=guild_config, member=member)
-        if member_data.get_raw(self.MEMBER_ID) == self.DEFAULT_ID:
+        member_data = self.config.member(member)
+        if await member_data.get_raw(self.MEMBER_ID) == self.DEFAULT_ID:
             await ctx.send("No data for {} has been found".format(member.mention))
             return
 
