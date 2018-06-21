@@ -6,12 +6,13 @@ Right now the only one working is levels. I'm looking forward to expanding this 
 
 #### Levels
 **Stage: alpha**
-**This _requires_ MongoDB**
+
 This is a simple leveling system inspired by the Leveler for V2 Cog by [AznStevy](https://github.com/AznStevy/Maybe-Useful-Cogs).
 It's highly configurable and has a few tweaks that make it different from most level systems I've seen so far for Discord.
 
 #### Autoroles
 **Stage: pre-alpha**
+
 This was my entry into Cog and Discord development, then I found some other really cool autorole cogs for V3. Development for this Cog is halted and will probably be dropped to focus on something else that Red might still be lacking
 
 ## Suggestions? Contributions?

@@ -4,6 +4,6 @@
   "description": "A per-server leveling system with automatic roles.",
   "short": "Leveling system for Red.",
   "tags": ["level", "leveling", "autoroles", "leaderboard", "game"],
-  "install_msg": "Thank you for using the alpha version of Levels! You will need to set up MongoDB to get going.",
+  "install_msg": "Thank you for using the alpha version of Levels!",
   "hidden": false
 }
