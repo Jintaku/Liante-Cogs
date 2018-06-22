@@ -292,16 +292,20 @@ class Levels:
     async def _give_xp(self, **kwargs):
         member_data = kwargs[self.MEMBER_DATA]
         member = kwargs[self.MEMBER]
-        exp = kwargs[self.EXP]
+        xp = kwargs[self.EXP]
 
-        curr_xp = await member_data.get_raw(self.EXP)
-        await member_data.set_raw(self.EXP, value=curr_xp + exp)
+        exp = await member_data.get_raw(self.EXP)
+        exp += xp
+        await member_data.set_raw(self.EXP, value=exp)
 
         count = 0
-        while member_data.get_raw(self.EXP) >= member_data.get_raw(self.GOAL):
+        goal = await member_data.get_raw(self.GOAL)
+        while exp >= goal:
             await self._level_up(member_data=member_data,
                                  member=member)
             count += 1
+            exp = await member_data.get_raw(self.EXP)
+            goal = await member_data.get_raw(self.GOAL)
         return count
 
     @commands.guild_only()
@@ -602,7 +606,7 @@ class Levels:
         await ctx.send("{0.mention} has received {1} xp{2}!".format(member, xp, reason))
 
         if count != 0:
-            lvl = member_data.get_raw(self.LEVEL)
+            lvl = await member_data.get_raw(self.LEVEL)
             levels = "level" if count == 1 else "levels"
             await ctx.send("{0} {1} were earned by that. New shiny level: {2}".format(count, levels, lvl))
 
