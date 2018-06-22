@@ -128,7 +128,7 @@ class Levels:
         guild_config = self.config.guild(guild)
         member_data = await self._get_member_data(guild_config=guild_config, member=before)
 
-        member_data.set_raw(self.USERNAME, value=after.display_name)
+        await member_data.set_raw(self.USERNAME, value=after.display_name)
 
     async def _get_guild_config(self, guild: discord.Guild):
         """
