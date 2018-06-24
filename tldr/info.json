@@ -1,0 +1,10 @@
+{
+  "author": "Liante",
+  "bot_version": [3,0,0],
+  "description": "Summarize conversations on the fly. Powered by SMMRY",
+  "short": "tl;dr.",
+  "tags": ["summary", "tldr", "lazy", "missed", "smmry"],
+  "install_msg": "Thank you for using the alpha version of tldr!",
+  "hidden": true,
+  "disabled": true
+}
