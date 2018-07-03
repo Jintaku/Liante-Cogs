@@ -44,6 +44,7 @@ class Levels:
 
     GUILD_ROLES = "guild_roles"
     LEADERBOARD_MAX = "leaderboard_max"
+    IGNORED_CHANNEL = "ignored_channel"
 
     GUILD_CONFIG = "guild_config"
     MEMBER = "member"
@@ -61,7 +62,11 @@ class Levels:
             self.MAKE_ANNOUNCEMENTS: False,
             self.ACTIVE: True,
             self.LEADERBOARD_MAX: 20,
-            self.GUILD_ROLES: [],
+            self.GUILD_ROLES: []
+        }
+
+        default_channel = {
+            self.IGNORED_CHANNEL: False
         }
 
         default_member = {
@@ -76,29 +81,20 @@ class Levels:
             self.MESSAGE_WITH_XP: 0
         }
 
-        self.config.register_member(**default_member, force_registration=True)
         self.config.register_guild(**default_guild, force_registration=True)
+        self.config.register_channel(**default_channel, force_registration=True)
+        self.config.register_member(**default_member, force_registration=True)
 
     async def on_message(self, message: discord.Message):
         # ignore bots, dms, and red commands
-        if message.author.bot:
+        if not await self._is_valid_message(message):
             return
-
-        if not message.guild:
-            return
-
-        prefixes = await Config.get_core_conf().prefix()
-        for prefix in prefixes:
-            if message.content.startswith(prefix):
-                return
 
         member = message.author
         guild = message.guild
         channel = message.channel
 
-        guild_config = self.config.guild(guild)
-        if not await guild_config.active():
-            return
+        guild_config = await self._get_guild_config(guild)
         member_data = await self._get_member_data(guild_config=guild_config, member=member)
 
         message_count = await member_data.get_raw(self.MESSAGE_COUNT)
@@ -119,6 +115,28 @@ class Levels:
             level = await member_data.get_raw(self.LEVEL)
             await channel.send("Congratulations {0}, you're now level {1}".format(member.mention, level))
 
+    async def _is_valid_message(self, message: discord.Message):
+        if message.author.bot:
+            return False
+
+        if not message.guild:
+            return False
+
+        guild_config = await self._get_guild_config(message.guild)
+        if not await guild_config.get_raw(self.ACTIVE):
+            return False
+
+        channel_config = await self._get_channel_config(message.channel)
+        if await channel_config.get_raw(self.IGNORED_CHANNEL):
+            return False
+
+        prefixes = await Config.get_core_conf().prefix()
+        for prefix in prefixes:
+            if message.content.startswith(prefix):
+                return False
+
+        return True
+
     async def on_member_update(self, before: discord.Member, after: discord.Member):
         # this should handle any nickname and username changes
         if before.display_name == after.display_name:
@@ -129,6 +147,12 @@ class Levels:
         member_data = await self._get_member_data(guild_config=guild_config, member=before)
 
         await member_data.set_raw(self.USERNAME, value=after.display_name)
+
+    async def _get_channel_config(self, channel: discord.TextChannel):
+        """
+        The channel config helps determine if a channel should be ignored.
+        """
+        return self.config.channel(channel)
 
     async def _get_guild_config(self, guild: discord.Guild):
         """
@@ -540,6 +564,25 @@ class Levels:
 
         embed.description = member_list
         await ctx.send(embed=embed)
+
+    @guild.command(name="channelignore", aliases=["chignore", "ci"])
+    async def channel_ignore(self, ctx: Context, channel: discord.TextChannel = None):
+        """
+        Toggles a channel being ignored.
+
+        channel: The channel you want to toggle. If none given, the current channel will be taken.
+        """
+        if channel is None:
+            channel = ctx.channel
+
+        channel_config = await self._get_channel_config(channel)
+
+        if not await channel_config.get_raw(self.IGNORED_CHANNEL):
+            await channel_config.set_raw(self.IGNORED_CHANNEL, value=True)
+            await ctx.send("Channel {0.mention} will now be ignored.".format(channel))
+        else:
+            await channel_config.set_raw(self.IGNORED_CHANNEL, value=False)
+            await ctx.send("Channel {0.mention} no longer being ignored".format(channel))
 
     @lvladmin.group(autohelp=True)
     async def member(self, ctx: Context):
