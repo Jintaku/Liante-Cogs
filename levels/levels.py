@@ -37,7 +37,6 @@ class Levels:
     EXP = "exp"
     LEVEL = "level"
     GOAL = "goal"
-    DEFAULT_GOAL = 100
     LAST_TRIGGER = "last_trigger"
     MESSAGE_COUNT = "message_count"
     MESSAGE_WITH_XP = "message_with_xp"
@@ -75,7 +74,7 @@ class Levels:
             self.ROLE_NAME: self.DEFAULT_ROLE,
             self.EXP: 0,
             self.LEVEL: 0,
-            self.GOAL: self.DEFAULT_GOAL,
+            self.GOAL: 100,
             self.LAST_TRIGGER: 0,
             self.MESSAGE_COUNT: 0,
             self.MESSAGE_WITH_XP: 0
@@ -676,7 +675,7 @@ class Levels:
     @config_set.command(name="goal")
     async def set_xp_goal_base(self, ctx: Context, value: int):
         """
-        Base goal xp
+        Base goal xp - default: 100
 
         This is the xp needed to reach level 1. Subsequent goals are measured with the current level's value.
         """
@@ -686,7 +685,7 @@ class Levels:
     @config_set.command(name="gainfactor", aliases=["gf"])
     async def set_xp_gain_factor(self, ctx: Context, value: float):
         """
-        Increases the xp reward
+        Increases the xp reward - default: 0.01
 
         XP gained += XP gained * lvl * this factor
         """
@@ -696,7 +695,7 @@ class Levels:
     @config_set.command(name="minxp")
     async def set_xp_min(self, ctx: Context, value: int):
         """
-        Minimum xp per message
+        Minimum xp per message - default: 15
 
         Note that the real minimum is this * lvl * gain factor
         """
@@ -706,7 +705,7 @@ class Levels:
     @config_set.command(name="maxxp")
     async def set_xp_max(self, ctx: Context, value: int):
         """
-        Maximum xp per message
+        Maximum xp per message - default: 25
 
         Note that the real maximum is this * lvl * gain factor
         """
@@ -716,7 +715,7 @@ class Levels:
     @config_set.command(name="cooldown", aliases=["cd"])
     async def set_cooldown(self, ctx: Context, value: int):
         """
-        Time between xp awards
+        Time between xp awards - default: 60
 
         In seconds
         """
@@ -726,7 +725,7 @@ class Levels:
     @config_set.command(name="leaderboard_max", aliases=["lb_max"])
     async def set_leaderboard_max(self, ctx: Context, value: int):
         """
-        Max amount of entries on the leaderboard
+        Max amount of entries on the leaderboard - default: 20
         """
         await self.config.guild(ctx.guild).set_raw(self.LEADERBOARD_MAX, value=value)
         await ctx.send("Leaderboard's max entries updated")
@@ -746,7 +745,7 @@ class Levels:
     @config_set.command(name="announce")
     async def set_make_announcements(self, ctx: Context, value: bool):
         """
-        Public announcements when leveling up
+        Public announcements when leveling up - default: False
 
         If true, the bot will announce publicly when someone levels up
         """
@@ -757,7 +756,7 @@ class Levels:
     @config_set.command(name="active")
     async def set_active(self, ctx: Context, value: bool):
         """
-        Register xp and monitor messages
+        Register xp and monitor messages  - default: True
 
         If true, the bot will keep record of messages for xp and leveling purposes. Otherwise it will only listen to
         commands
