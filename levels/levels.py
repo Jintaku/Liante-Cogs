@@ -399,11 +399,12 @@ class Levels:
 
         i = 0
         while i < leaderboard_max and i < len(all_members):
-            if i == 0:
+            last_digit = int(str(i)[-1])
+            if last_digit == 0:
                 suffix = "st"
-            elif i == 1:
+            elif last_digit == 1:
                 suffix = "nd"
-            elif i == 2:
+            elif last_digit == 2:
                 suffix = "rd"
             else:
                 suffix = "th"
@@ -413,8 +414,11 @@ class Levels:
                                                                     member[self.LEVEL])
             i += 1
 
-        embed.description = member_list
-        await ctx.send(embed=embed)
+        try:
+            embed.description = member_list
+            await ctx.send(embed=embed)
+        except discord.errors.HTTPException:
+            await ctx.send("The list is too long. Please set a lower limit with `!la config set leaderboard_max`")
 
     @checks.admin()
     @commands.guild_only()
@@ -543,11 +547,12 @@ class Levels:
 
         i = 0
         while i < leaderboard_max and i < len(all_members):
-            if i == 0:
+            last_digit = int(str(i)[-1])
+            if last_digit == 0:
                 suffix = "st"
-            elif i == 1:
+            elif last_digit == 1:
                 suffix = "nd"
-            elif i == 2:
+            elif last_digit == 2:
                 suffix = "rd"
             else:
                 suffix = "th"
@@ -561,8 +566,11 @@ class Levels:
                                                                                        member[self.MESSAGE_COUNT])
             i += 1
 
-        embed.description = member_list
-        await ctx.send(embed=embed)
+        try:
+            embed.description = member_list
+            await ctx.send(embed=embed)
+        except discord.errors.HTTPException:
+            await ctx.send("The list is too long. Please set a lower limit with `!la config set leaderboard_max`")
 
     @guild.command(name="channelignore", aliases=["chignore", "ci"])
     async def channel_ignore(self, ctx: Context, channel: discord.TextChannel = None):
