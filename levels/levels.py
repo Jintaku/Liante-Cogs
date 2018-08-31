@@ -440,17 +440,17 @@ class Levels:
 
     @checks.admin()
     @commands.guild_only()
-    @commands.group(aliases=["la"], autohelp=True)
+    @commands.group(aliases=["la"])
     async def lvladmin(self, ctx: Context):
         """Admin commands."""
         pass
 
-    @lvladmin.group(autohelp=True)
+    @lvladmin.group()
     async def guild(self, ctx: Context):
         """Guild options"""
         pass
 
-    @guild.group(autohelp=True)
+    @guild.group()
     async def roles(self, ctx: Context):
         """Autoroles options"""
         pass
@@ -609,7 +609,7 @@ class Levels:
             await channel_config.set_raw(self.IGNORED_CHANNEL, value=False)
             await ctx.send("Channel {0.mention} no longer being ignored".format(channel))
 
-    @lvladmin.group(autohelp=True)
+    @lvladmin.group()
     async def member(self, ctx: Context):
         """Member options"""
         pass
@@ -678,7 +678,7 @@ class Levels:
             levels = "level" if count == 1 else "levels"
             await ctx.send("{0} {1} were earned by that. New shiny level: {2}".format(count, levels, lvl))
 
-    @lvladmin.group(name="config", autohelp=True)
+    @lvladmin.group(name="config")
     async def configuration(self, ctx: Context):
         """Configuration options"""
         pass
@@ -693,7 +693,7 @@ class Levels:
         await self.config.guild(ctx.guild).clear()
         await ctx.send("Configuration defaults have been restored")
 
-    @configuration.group(name="set", autohelp=True)
+    @configuration.group(name="set")
     async def config_set(self, ctx: Context):
         """Change config values"""
         pass
@@ -854,7 +854,7 @@ class Levels:
         else:
             await ctx.send("New role message updated")
 
-    @configuration.group(name="get", autohelp=True)
+    @configuration.group(name="get")
     async def config_get(self, ctx: Context):
         """Check current configuration"""
         pass
