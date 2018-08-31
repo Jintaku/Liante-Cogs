@@ -22,6 +22,8 @@ class Levels:
     SINGLE_ROLE = "single_role"
     MAKE_ANNOUNCEMENTS = "make_announcements"
     ACTIVE = "active"
+    LEVEL_UP_MESSAGE = "level_up_message"
+    ROLE_CHANGE_MESSAGE = "role_change_message"
 
     ROLE_ID = "role_id"
     ROLE_NAME = "role_name"
@@ -61,6 +63,8 @@ class Levels:
             self.MAKE_ANNOUNCEMENTS: False,
             self.ACTIVE: True,
             self.LEADERBOARD_MAX: 20,
+            self.LEVEL_UP_MESSAGE: "Congratulations {mention}, you're now level {level}. ",
+            self.ROLE_CHANGE_MESSAGE: "Your days as {oldrole} are over. Your new role is {newrole}.",
             self.GUILD_ROLES: []
         }
 
@@ -106,13 +110,27 @@ class Levels:
         if curr_time - last_trigger <= cooldown:
             return
 
+        old_role = await member_data.get_raw(self.ROLE_NAME)
+
         level_up = await self._process_xp(guild_config=guild_config,
                                           member_data=member_data,
                                           member=member)
 
         if level_up and await self.config.guild(guild).make_announcements():
             level = await member_data.get_raw(self.LEVEL)
-            await channel.send("Congratulations {0}, you're now level {1}".format(member.mention, level))
+            new_role = await member_data.get_raw(self.ROLE_NAME)
+            message_variables = {
+                "mention": member.mention,
+                "username": member.display_name,
+                "level": level,
+                "oldrole": old_role,
+                "newrole": new_role
+            }
+            level_up_message = (await guild_config.get_raw(self.LEVEL_UP_MESSAGE)).format(**message_variables)
+            if old_role != new_role:
+                level_up_message += (await guild_config.get_raw(self.ROLE_CHANGE_MESSAGE)).format(**message_variables)
+            if level_up_message != "":
+                await channel.send(level_up_message)
 
     async def _is_valid_message(self, message: discord.Message):
         if message.author.bot:
@@ -392,7 +410,7 @@ class Levels:
         top_member = discord.utils.find(lambda m: str(m.id) == all_members[0][self.MEMBER_ID], ctx.guild.members)
         member_list = ""
 
-        embed = discord.Embed(title="------------------------------**Leaderboard**------------------------------")
+        embed = discord.Embed(title="{:-^75}".format("**Leaderboard**"))
         embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
         embed.set_thumbnail(url=top_member.avatar_url)
         embed.timestamp = datetime.utcnow()
@@ -540,7 +558,7 @@ class Levels:
         top_member = discord.utils.find(lambda m: m.display_name == all_members[0][self.USERNAME], ctx.guild.members)
         member_list = ""
 
-        embed = discord.Embed(title="------------------------------**Leaderboard**------------------------------")
+        embed = discord.Embed(title="{:-^75}".format("**Leaderboard**"))
         embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
         embed.set_thumbnail(url=top_member.avatar_url)
         embed.timestamp = datetime.utcnow()
@@ -773,6 +791,69 @@ class Levels:
         value = "enabled" if await self.config.guild(ctx.guild).active() else "disabled"
         await ctx.send("XP tracking is now {}".format(value))
 
+    @config_set.command(name="lvlmessage")
+    async def set_level_message(self, ctx: Context, *, message=None):
+        """
+        Message to display when leveling up
+
+        This message will be displayed when someone levels up if announcements are enabled. To leave the message
+        empty just set it to "none": `!la config set lvlmessage none`
+
+        The possible variables are:
+        {mention}: mentions the user
+        {username}: displays the username without mentioning
+        {level}: the level that was just reached
+        {oldrole}: the role of the user before leveling up
+        {newrole}: the role of the user after leveling up
+
+        Note that {oldrole} and {newrole} may be the same if no role was awarded and will always default to
+        "No level roles" if no roles have been set up for this guild. For finer control, use the `rolemessage`.
+
+        Example: Congratulations {mention}, you're now level {level}.
+        """
+        if message is None:
+            return
+
+        if message == "none":
+            message = ""
+        await self.config.guild(ctx.guild).set_raw(self.LEVEL_UP_MESSAGE, value=message)
+        if message == "":
+            await ctx.send("No message will be sent when leveling up")
+        else:
+            await ctx.send("Level-up message updated")
+
+    @config_set.command(name="rolemessage")
+    async def set_role_message(self, ctx: Context, *, message=None):
+        """
+        Message to display when awarding roles
+
+        This message will be displayed when someone gets a role through leveling up if announcements are enabled.
+        The message will be appended to the `lvlmessage` if it's configured or displayed on its own otherwise.
+        To leave the message empty just set it to "none": `!la config set rolemessage none`
+
+        The possible variables are:
+        {mention}: mentions the user
+        {username}: displays the username without mentioning
+        {level}: the level that was just reached
+        {oldrole}: the role of the user before leveling up
+        {newrole}: the role of the user after leveling up
+
+        Note that {oldrole} and {newrole} will always default to "No level roles" if no roles have been set up for this
+        guild.
+
+        Example: Your days as {oldrole} are over. Your new role is {newrole}.
+        """
+        if message is None:
+            return
+
+        if message == "none":
+            message = ""
+        await self.config.guild(ctx.guild).set_raw(self.ROLE_CHANGE_MESSAGE, value=message)
+        if message == "":
+            await ctx.send("No message will be sent when earning a new role")
+        else:
+            await ctx.send("New role message updated")
+
     @configuration.group(name="get", autohelp=True)
     async def config_get(self, ctx: Context):
         """Check current configuration"""
@@ -868,3 +949,50 @@ class Levels:
         """
         value = "enabled" if await self.config.guild(ctx.guild).get_raw(self.ACTIVE) else "disabled"
         await ctx.send("XP tracking is {}".format(value))
+
+    @config_get.command(name="lvlmessage")
+    async def get_level_message(self, ctx: Context):
+        """
+        Message to display when leveling up
+
+        This message will be displayed when someone levels up if announcements are enabled. To leave the message
+        empty just set it to "none": `!la config set lvlmessage none`
+
+        The possible variables are:
+        {mention}: mentions the user
+        {username}: displays the username without mentioning
+        {level}: the level that was just reached
+        {oldrole}: the role of the user before leveling up
+        {newrole}: the role of the user after leveling up
+
+        Note that {oldrole} and {newrole} may be the same if no role was awarded and will always default to
+        "No level roles" if no roles have been set up for this guild. For finer control, use the `rolemessage`.
+
+        Example: Congratulations {mention}, you're now level {level}.
+        """
+        message = await self.config.guild(ctx.guild).get_raw(self.LEVEL_UP_MESSAGE)
+        await ctx.send(message)
+
+    @config_get.command(name="rolemessage")
+    async def get_role_message(self, ctx: Context):
+        """
+        Message to display when awarding roles
+
+        This message will be displayed when someone gets a role through leveling up if announcements are enabled.
+        The message will be appended to the `lvlmessage` if it's configured or displayed on its own otherwise.
+        To leave the message empty just set it to "none": `!la config set rolemessage none`
+
+        The possible variables are:
+        {mention}: mentions the user
+        {username}: displays the username without mentioning
+        {level}: the level that was just reached
+        {oldrole}: the role of the user before leveling up
+        {newrole}: the role of the user after leveling up
+
+        Note that {oldrole} and {newrole} will always default to "No level roles" if no roles have been set up for this
+        guild.
+
+        Example: Your days as {oldrole} are over. Your new role is {newrole}.
+        """
+        message = await self.config.guild(ctx.guild).get_raw(self.ROLE_CHANGE_MESSAGE)
+        await ctx.send(message)
