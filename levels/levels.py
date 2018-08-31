@@ -60,7 +60,7 @@ class Levels:
             self.XP_MAX: 25,
             self.COOLDOWN: 60,
             self.SINGLE_ROLE: True,
-            self.MAKE_ANNOUNCEMENTS: False,
+            self.MAKE_ANNOUNCEMENTS: True,
             self.ACTIVE: True,
             self.LEADERBOARD_MAX: 20,
             self.LEVEL_UP_MESSAGE: "Congratulations {mention}, you're now level {level}. ",
@@ -771,7 +771,7 @@ class Levels:
     @config_set.command(name="announce")
     async def set_make_announcements(self, ctx: Context, value: bool):
         """
-        Public announcements when leveling up - default: False
+        Public announcements when leveling up - default: True
 
         If true, the bot will announce publicly when someone levels up
         """
