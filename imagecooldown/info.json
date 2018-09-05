@@ -1,0 +1,9 @@
+{
+  "author": "Liante",
+  "bot_version": [3,0,0],
+  "description": "Attachment cooldown per channel per role",
+  "short": "Set cooldown to attachments",
+  "tags": ["image", "picture", "cooldown", "attachment", "files"],
+  "install_msg": "Thank you for using the alpha version of image cooldown!",
+  "hidden": false
+}
