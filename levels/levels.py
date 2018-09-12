@@ -415,14 +415,17 @@ class Levels:
 
         i = 0
         while i < leaderboard_max and i < len(all_members):
-            last_digit = int(str(i)[-1])
-            if last_digit == 0:
-                suffix = "st"
-            elif last_digit == 1:
-                suffix = "nd"
-            elif last_digit == 2:
-                suffix = "rd"
-            else:
+            last_digits = int(str(i)[-2:])
+            suffix = None
+            if last_digits not in [10, 11, 12]:
+                if last_digits % 10 == 0:
+                    suffix = "st"
+                elif last_digits % 10 == 1:
+                    suffix = "nd"
+                elif last_digits % 10 == 2:
+                    suffix = "rd"
+
+            if suffix is None:
                 suffix = "th"
 
             member = all_members[i]
@@ -563,14 +566,17 @@ class Levels:
 
         i = 0
         while i < leaderboard_max and i < len(all_members):
-            last_digit = int(str(i)[-1])
-            if last_digit == 0:
-                suffix = "st"
-            elif last_digit == 1:
-                suffix = "nd"
-            elif last_digit == 2:
-                suffix = "rd"
-            else:
+            last_digits = int(str(i)[-2:])
+            suffix = None
+            if last_digits not in [10, 11, 12]:
+                if last_digits % 10 == 0:
+                    suffix = "st"
+                elif last_digits % 10 == 1:
+                    suffix = "nd"
+                elif last_digits % 10 == 2:
+                    suffix = "rd"
+
+            if suffix is None:
                 suffix = "th"
 
             member = all_members[i]

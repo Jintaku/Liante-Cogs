@@ -2,4 +2,4 @@ from .serverstats import ServerStats
 
 
 def setup(bot):
-    bot.addCog(ServerStats())
+    bot.add_cog(ServerStats(bot))

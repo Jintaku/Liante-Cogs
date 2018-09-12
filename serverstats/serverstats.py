@@ -1,5 +1,7 @@
-from redbot.core import commands, Config
+from redbot.core import commands, Config, bot
+from redbot.core.bot import Red
 from redbot.core.commands import Context
+import asyncio
 import discord
 
 
@@ -29,8 +31,9 @@ class ServerStats:
     CHANNEL_VOICE_MONTH = "channel_voice_month"
     CHANNEL_VOICE_TOTAL = "channel_voice_total"
 
-    def __init__(self):
+    def __init__(self, red_bot):
         self.config = Config.get_conf(self, 4712468135468476)
+        self.bot: Red = red_bot
 
         default_guild = {
             self.GUILD_TEXT_DAY: 0,
@@ -60,6 +63,31 @@ class ServerStats:
         self.config.register_guild(**default_guild, force_registration=True)
         self.config.register_member(**default_member, force_registration=True)
         self.config.register_channel(**default_channel, force_registration=True)
+
+        self.timer = asyncio.create_task(self.timer_test())
+
+    async def timer_test(self):
+        channel = self.bot.get_channel(434092671229755394)
+        count = 1
+        while True:
+            await asyncio.sleep(5)
+            await channel.send("test {}".format(count))
+            count += 1
+
+    @commands.command()
+    async def stop_test(self, ctx: Context):
+        self.timer.cancel()
+        await ctx.send("stopped!")
+
+    @commands.command()
+    async def start_test(self, ctx: Context):
+        self.timer = asyncio.create_task(self.timer_test())
+        await ctx.send("started!!")
+
+    def __unload(self):
+        print("stopping test task")
+        self.timer.cancel()
+        print("unload successful")
 
     async def on_message(self, message: discord.Message):
         ...

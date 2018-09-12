@@ -101,6 +101,12 @@ class ImageCooldown:
         await guild_config.set_raw(self.ACTIVE, value=value)
         await ctx.send("Image Cooldown is now {} for this server".format(value_str))
 
+    @image_cooldown.command(name="cooldown", aliases=["cd"])
+    async def cooldown(self, ctx: Context, cooldown: int):
+        guild_config = self.config.guild(ctx.guild)
+        await guild_config.set_raw(self.COOLDOWN, value=cooldown)
+        await ctx.send("Cooldown set to {}".format(cooldown))
+
     @image_cooldown.group(name="whitelist", aliases=["wl"])
     async def whitelist(self, ctx: Context):
         pass
@@ -110,7 +116,7 @@ class ImageCooldown:
         pass
 
     @whitelist_add.command(name="member")
-    async def whitelist_member(self, ctx: Context, member: discord.Member):
+    async def whitelist_add_member(self, ctx: Context, member: discord.Member):
         member_id = str(member.id)
         guild_config = self.config.guild(ctx.guild)
         member_whitelist = await guild_config.get_raw(self.MEMBER_WHITELIST)
@@ -121,7 +127,7 @@ class ImageCooldown:
             await ctx.send("{0.display_name}#{0.discriminator} was added to the whitelist.".format(member))
 
     @whitelist_add.command(name="role")
-    async def whitelist_role(self, ctx: Context, role: discord.Role):
+    async def whitelist_add_role(self, ctx: Context, role: discord.Role):
         role_id = str(role.id)
         guild_config = self.config.guild(ctx.guild)
         role_whitelist = await guild_config.get_raw(self.ROLE_WHITELIST)
@@ -132,7 +138,7 @@ class ImageCooldown:
             await ctx.send("{0.name} was added to the whitelist.".format(role))
 
     @whitelist_add.command(name="channel")
-    async def whitelist_member(self, ctx: Context, channel: discord.TextChannel):
+    async def whitelist_add_member(self, ctx: Context, channel: discord.TextChannel):
         channel_id = str(channel.id)
         guild_config = self.config.guild(ctx.guild)
         channel_whitelist = await guild_config.get_raw(self.CHANNEL_WHITELIST)
@@ -141,3 +147,46 @@ class ImageCooldown:
             channel_whitelist.append(channel_id)
             await guild_config.set_raw(self.CHANNEL_WHITELIST, value=channel_whitelist)
             await ctx.send("{0.name} was added to the whitelist.".format(channel))
+
+    @whitelist.group(name="remove")
+    async def whitelist_remove(self, ctx: Context):
+        pass
+
+    @whitelist_remove.command(name="member")
+    async def whitelist_remove_member(self, ctx: Context, member: discord.Member):
+        member_id = member.id
+        guild_config = self.config.guild(ctx.guild)
+        member_whitelist = await guild_config.get_raw(self.MEMBER_WHITELIST)
+
+        try:
+            member_whitelist.remove(member_id)
+            await guild_config.set_raw(self.MEMBER_WHITELIST, value=member_whitelist)
+            await ctx.send("{0.display_name}#{0.discriminator} was removed from the whitelist".format(member))
+        except ValueError:
+            await ctx.send("{0.display_name}#{0.discriminator} was not found in the whitelist".format(member))
+
+    @whitelist_remove.command(name="role")
+    async def whitelist_remove_role(self, ctx: Context, role: discord.Role):
+        role_id = role.id
+        guild_config = self.config.guild(ctx.guild)
+        role_whitelist = await guild_config.get_raw(self.ROLE_WHITELIST)
+
+        try:
+            role_whitelist.remove(role_id)
+            await guild_config.set_raw(self.ROLE_WHITELIST, value=role_whitelist)
+            await ctx.send("{0.name} was removed from the whitelist".format(role))
+        except ValueError:
+            await ctx.send("{0.name} was not found in the whitelist".format(role))
+
+    @whitelist_remove.command(name="channel")
+    async def whitelist_remove_channel(self, ctx: Context, channel: discord.TextChannel):
+        channel_id = channel.id
+        guild_config = self.config.guild(ctx.guild)
+        channel_whitelist = await guild_config.get_raw(self.CHANNEL_WHITELIST)
+
+        try:
+            channel_whitelist.remove(channel_id)
+            await guild_config.set_raw(self.CHANNEL_WHITELIST, value=channel_whitelist)
+            await ctx.send("{0.name} was removed from the whitelist".format(channel))
+        except ValueError:
+            await ctx.send("{0.name} was not found in the whitelist".format(channel))
