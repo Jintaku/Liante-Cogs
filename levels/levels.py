@@ -441,7 +441,7 @@ class Levels:
         except discord.errors.HTTPException:
             await ctx.send("The list is too long. Please set a lower limit with `!la config set leaderboard_max`")
 
-    @checks.admin()
+    @checks.admin_or_permissions(administrator=True)
     @commands.guild_only()
     @commands.group(aliases=["la"])
     async def lvladmin(self, ctx: Context):
