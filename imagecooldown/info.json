@@ -5,5 +5,5 @@
   "short": "Set cooldown to attachments",
   "tags": ["image", "picture", "cooldown", "attachment", "files"],
   "install_msg": "Thank you for using the alpha version of image cooldown!",
-  "hidden": false
+  "hidden": true
 }
