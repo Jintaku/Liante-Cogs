@@ -6,8 +6,13 @@ from datetime import datetime
 import discord
 import time
 
+try:
+    from redbot.core.commands import Cog
+except ImportError:
+    Cog = object
 
-class Levels:
+    
+class Levels(Cog):
     """
     A leveling system for Red.
     """
