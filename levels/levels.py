@@ -5,8 +5,13 @@ from datetime import datetime
 import discord
 import time
 
+try:
+    from redbot.core.commands import Cog
+except ImportError:
+    Cog = object
 
-class Levels:
+    
+class Levels(Cog):
     """
     A leveling system for Red.
     """
@@ -53,7 +58,7 @@ class Levels:
         self.config = Config.get_conf(self, 4712468135468475)
         default_guild = {
             self.XP_GOAL_BASE: 100,
-            self.XP_GAIN_FACTOR: 0.01,
+            self.XP_GAIN_FACTOR: 0.1,
             self.XP_MIN: 15,
             self.XP_MAX: 25,
             self.COOLDOWN: 60,
@@ -235,7 +240,7 @@ class Levels:
         xp_max = await guild_config.get_raw(self.XP_MAX)
         xp_gain_factor = await guild_config.get_raw(self.XP_GAIN_FACTOR)
         xp_gain = randint(xp_min, xp_max)
-        message_xp = xp_gain + int(xp_gain * xp_gain_factor * (await member_data.get_raw(self.LEVEL)))
+        message_xp = xp_gain + int(xp_gain_factor * (await member_data.get_raw(self.LEVEL)))
         curr_xp = await member_data.get_raw(self.EXP)
 
         await member_data.set_raw(self.EXP, value=curr_xp + message_xp)
@@ -715,9 +720,9 @@ class Levels:
     @config_set.command(name="gainfactor", aliases=["gf"])
     async def set_xp_gain_factor(self, ctx: Context, value: float):
         """
-        Increases the xp reward - default: 0.01
+        Increases the xp reward - default: 0.1
 
-        XP gained += XP gained * lvl * this factor
+        XP gained += lvl * this factor
         """
         await self.config.guild(ctx.guild).set_raw(self.XP_GAIN_FACTOR, value=value)
         await ctx.send("XP gain factor value updated")
@@ -878,7 +883,7 @@ class Levels:
         """
         Increases the xp reward
 
-        XP gained += XP gained * lvl * this factor
+        XP gained += lvl * this factor
         """
         value = await self.config.guild(ctx.guild).get_raw(self.XP_GAIN_FACTOR)
         await ctx.send("XP gain factor: {}".format(value))
