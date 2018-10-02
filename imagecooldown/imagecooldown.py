@@ -3,8 +3,13 @@ from redbot.core.commands import Context
 import discord
 import time
 
+try:
+    from redbot.core.commands import Cog
+except ImportError:
+    Cog = object
 
-class ImageCooldown:
+
+class ImageCooldown(Cog):
     """
 
     """

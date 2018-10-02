@@ -4,8 +4,13 @@ from redbot.core.commands import Context
 import asyncio
 import discord
 
+try:
+    from redbot.core.commands import Cog
+except ImportError:
+    Cog = object
 
-class ServerStats:
+
+class ServerStats(Cog):
     """
     Simple message and voice statistics.
     """
