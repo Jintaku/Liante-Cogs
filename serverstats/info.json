@@ -1,9 +1,9 @@
 {
   "author": "Liante",
   "bot_version": [3,0,0],
-  "description": "A counter for server activity",
+  "description": "A tracker for server activity",
   "short": "Server activity tracker",
   "tags": ["server", "utils", "stats", "track", "messages"],
   "install_msg": "Thank you for using the alpha version of serverstats!",
-  "hidden": true
+  "hidden": false
 }

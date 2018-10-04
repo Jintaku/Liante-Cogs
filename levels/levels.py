@@ -17,6 +17,7 @@ class Levels(Cog):
     A leveling system for Red.
     """
     __author__ = "Liante#0216"
+    __version__ = "0.1.0"
 
     # Constants for data access
     XP_GOAL_BASE = "xp_goal_base"
