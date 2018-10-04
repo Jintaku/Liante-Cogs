@@ -25,7 +25,7 @@ class ServerStats(Cog):
         self.bot: Red = red_bot
 
         default_global = {
-            "last_update": date.today()
+            "last_update": str(date.today())
         }
 
         default_guild = {
@@ -64,18 +64,18 @@ class ServerStats(Cog):
 
         self.current_month = datetime.now().month - 1
 
-        self.timer: asyncio.Task = asyncio.create_task(self.__db_register_loop())
+        loop = self.bot.loop
+        self.timer: asyncio.Task = loop.create_task(self.__db_register_loop())
 
     async def __db_register_loop(self):
         print(await self.config.last_update())
         print(date.today())
-        if (await self.config.last_update()) != date.today():
+        if (await self.config.last_update()) != str(date.today()):
             print("setting database up to date")
             await self.__db_register()
         print("register loop started")
         while True:
-            # sleep_time = await self.get_seconds_until_midnight()
-            sleep_time = 60
+            sleep_time = await self.get_seconds_until_midnight()
             hours = int(sleep_time / 3600)
             minutes = int((sleep_time % 3600) / 60)
             seconds = int((sleep_time % 3600) % 60)
@@ -99,7 +99,7 @@ class ServerStats(Cog):
             self.current_month = month
         print("end of if block")
 
-        await self.config.last_update.set(date.today())
+        await self.config.last_update.set(str(date.today()))
         print("end of set last update date")
         return
 
@@ -167,7 +167,7 @@ class ServerStats(Cog):
         prefixes = await Config.get_core_conf().prefix()
         for prefix in prefixes:
             if message.content.startswith(prefix):
-                return False
+                return
 
         async with self.config.guild(guild).text_day() as text_day:
             text_day[-1] += 1
@@ -184,12 +184,12 @@ class ServerStats(Cog):
     async def serverstats(self, ctx: Context):
         ...
 
-    @serverstats.command()
+    @serverstats.command(hidden=True)
     async def register_stats(self, ctx: Context):
         await self.__db_register()
         await ctx.send("database registered manually")
 
-    @serverstats.group()
+    @serverstats.group(hidden=True)
     async def autoregister(self, ctx: Context):
         ...
 
