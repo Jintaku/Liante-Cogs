@@ -71,9 +71,7 @@ class ServerStats(Cog):
         print(await self.config.last_update())
         print(date.today())
         if (await self.config.last_update()) != str(date.today()):
-            print("setting database up to date")
             await self.__db_register()
-        print("register loop started")
         while True:
             sleep_time = await self.get_seconds_until_midnight()
             hours = int(sleep_time / 3600)
@@ -93,32 +91,26 @@ class ServerStats(Cog):
             await self.__register_guild(guild)
             await self.__register_channels(guild)
             await self.__register_members(guild)
-        print("end of for-loop")
 
         if is_new_month:
             self.current_month = month
-        print("end of if block")
 
         await self.config.last_update.set(str(date.today()))
-        print("end of set last update date")
         return
 
     async def __register_guild(self, guild: discord.Guild):
         guild_config = self.config.guild(guild)
         await self.__update_db_group(guild_config)
-        print("guild registration completed")
         return
 
     async def __register_channels(self, guild: discord.Guild):
         for channel in guild.channels:
             await self.__update_db_group(self.config.channel(channel))
-        print("channels registration completed")
         return
 
     async def __register_members(self, guild: discord.Guild):
         for member in guild.members:
             await self.__update_db_group(self.config.member(member))
-        print("members registration completed")
         return
 
     async def __update_db_group(self, config_group: Group):
@@ -214,6 +206,4 @@ class ServerStats(Cog):
         await ctx.send(message)
 
     def __unload(self):
-        print("Stopping timer loop")
         self.timer.cancel()
-        print("ServerStats unloaded")
