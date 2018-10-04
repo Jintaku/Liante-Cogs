@@ -10,6 +10,12 @@ Right now the only one working is levels. I'm looking forward to expanding this 
 This is a simple leveling system inspired by the Leveler for V2 Cog by [AznStevy](https://github.com/AznStevy/Maybe-Useful-Cogs).
 It's highly configurable and has a few tweaks that make it different from most level systems I've seen so far for Discord.
 
+#### Serverstats
+**Stage: alpha**
+
+This should help track the server activity. It doesn't log message content, only how many messages were sent in certain period of time.
+As the stage suggests, don't expect any functionality or documentation at the moment. Use at your own risk.
+
 #### ImageCooldown
 **Stage: pre-alpha**
 
