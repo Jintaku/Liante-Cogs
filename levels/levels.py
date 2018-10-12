@@ -1,5 +1,4 @@
 from redbot.core import commands, Config, checks
-from redbot.core.bot import Red
 from redbot.core.commands import Context
 from random import randint
 from datetime import datetime
@@ -56,8 +55,7 @@ class Levels(Cog):
     GUILD_CONFIG = "guild_config"
     MEMBER = "member"
 
-    def __init__(self, bot: Red):
-        self.bot = bot
+    def __init__(self):
         self.config = Config.get_conf(self, 4712468135468475)
         default_guild = {
             self.XP_GOAL_BASE: 100,
@@ -393,8 +391,7 @@ class Levels(Cog):
         embed.set_thumbnail(url=member.avatar_url)
         embed.add_field(name="Level", value=current_lvl, inline=True)
         embed.add_field(name="Role", value=level_role, inline=True)
-        embed.add_field(name="XP", value=current_exp, inline=True)
-        embed.add_field(name="Goal", value=next_goal, inline=True)
+        embed.add_field(name="Current XP", value="{} / {}".format(current_exp, next_goal), inline=True)
         embed.timestamp = datetime.utcnow()
 
         return embed
