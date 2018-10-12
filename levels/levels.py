@@ -1,4 +1,5 @@
 from redbot.core import commands, Config, checks
+from redbot.core.bot import Red
 from redbot.core.commands import Context
 from random import randint
 from datetime import datetime
@@ -55,7 +56,8 @@ class Levels(Cog):
     GUILD_CONFIG = "guild_config"
     MEMBER = "member"
 
-    def __init__(self):
+    def __init__(self, bot: Red):
+        self.bot = bot
         self.config = Config.get_conf(self, 4712468135468475)
         default_guild = {
             self.XP_GOAL_BASE: 100,
