@@ -22,7 +22,7 @@ class ServerStats(Cog):
     """
 
     __author__ = "Liante#0216"
-    __version__ = "0.0.2"
+    __version__ = "0.0.3"
 
     def __init__(self, red_bot):
         self.config = Config.get_conf(self, 4712468135468476)
@@ -139,7 +139,7 @@ class ServerStats(Cog):
             LOG.debug("Time until next registration: {:02}:{:02}:{:02}".format(hours, minutes, seconds))
             await asyncio.sleep(sleep_time)
             await self.__db_register()
-            self.today = date.today()
+            self.today += timedelta(days=1)
             LOG.debug("Database registration completed")
 
     async def __db_register(self):
