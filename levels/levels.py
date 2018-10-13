@@ -393,8 +393,7 @@ class Levels(Cog):
         embed.set_thumbnail(url=member.avatar_url)
         embed.add_field(name="Level", value=current_lvl, inline=True)
         embed.add_field(name="Role", value=level_role, inline=True)
-        embed.add_field(name="XP", value=current_exp, inline=True)
-        embed.add_field(name="Goal", value=next_goal, inline=True)
+        embed.add_field(name="Current XP", value="{} / {}".format(current_exp, next_goal), inline=True)
         embed.timestamp = datetime.utcnow()
 
         return embed
