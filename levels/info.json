@@ -1,5 +1,5 @@
 {
-  "author": "Liante",
+  "author": ["Liante"],
   "bot_version": [3,0,0],
   "description": "A per-server leveling system with automatic roles.",
   "short": "Leveling system for Red.",
