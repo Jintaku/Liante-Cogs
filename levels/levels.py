@@ -143,8 +143,6 @@ class Levels(BaseCog, Lvladmin, X):
         username = await member_data.get_raw(self.USERNAME)
 
         # Build Embed based on information just queried
-        log.debug(username)
-        log.debug(member.top_role.name)
         embed = discord.Embed(title=username, color=member.color)
 
         # If highest level is not @everyone then show it
