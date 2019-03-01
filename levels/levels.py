@@ -5,9 +5,20 @@ from random import randint
 from datetime import datetime
 import discord
 import time
-
+import logging
 from .lvladmin import Lvladmin
 from .x import X
+
+log = logging.getLogger("levels")  # Thanks to Sinbad for the example code for logging
+log.setLevel(logging.DEBUG)
+
+console = logging.StreamHandler()
+
+if logging.getLogger("red").isEnabledFor(logging.DEBUG):
+    console.setLevel(logging.DEBUG)
+else:
+    console.setLevel(logging.INFO)
+log.addHandler(console)
 
 BaseCog = getattr(commands, "Cog", object)
 
@@ -101,16 +112,22 @@ class Levels(BaseCog, Lvladmin, X):
 
         Mention someone to know theirs.
         """
+
+        # If nobody mentioned, command user is the one selected
         if member is None:
             member = ctx.author
+
+        # If a bot is mentioned, stop
         if member.bot:
             await ctx.send("Bots can't play levels =(")
             return
 
+        # Get guild then get guild config then get member_data based on that
         guild = ctx.guild
         guild_config = self.config.guild(guild)
         member_data = await self._get_member_data(guild_config=guild_config, member=member)
 
+        # Build Embed and show it
         embed = await self._level_embed(ctx, member, member_data)
         await ctx.send(embed=embed)
 
@@ -118,15 +135,22 @@ class Levels(BaseCog, Lvladmin, X):
         """
         Internal method to format the level card embed
         """
+        # Get member information
         current_lvl = await member_data.get_raw(self.LEVEL)
         current_exp = await member_data.get_raw(self.EXP)
         next_goal = await member_data.get_raw(self.GOAL)
         level_role = await member_data.get_raw(self.ROLE_NAME)
         username = await member_data.get_raw(self.USERNAME)
 
+        # Build Embed based on information just queried
+        log.debug(username)
+        log.debug(member.top_role.name)
         embed = discord.Embed(title=username, color=member.color)
+
+        # If highest level is not @everyone then show it
         if member.top_role.name != "@everyone":
             embed.description = member.top_role.name
+
         embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
         embed.set_thumbnail(url=member.avatar_url)
         embed.add_field(name="Level", value=current_lvl, inline=True)
@@ -141,31 +165,34 @@ class Levels(BaseCog, Lvladmin, X):
         """
         Display a leaderboard of the top 20 members in the guild
         """
+        # Get members data and leaderboard configuration
         guild_config = await self._get_guild_config(ctx.guild)
         leaderboard_max = await guild_config.get_raw(self.LEADERBOARD_MAX)
         guild_members = await self._get_members(ctx.guild)
         all_members = guild_members.values()
+
+        # If no members then don't show it
         if len(all_members) == 0:
             await ctx.send("No member activity registered.")
             return
 
+        # Sort members by level and XP
         all_members = sorted(all_members, key=lambda u: (u[self.LEVEL], u[self.EXP]), reverse=True)
         top_member = discord.utils.find(lambda m: str(m.id) == all_members[0][self.MEMBER_ID], ctx.guild.members)
+
+        # Set variable to be appended to
         member_list = ""
 
+        # Start building Embed
         embed = discord.Embed()
         embed.set_author(name=ctx.guild.name + " Leaderboard")
         embed.set_thumbnail(url=ctx.guild.icon_url)
         embed.timestamp = datetime.utcnow()
 
-        i = 0
-        while i < leaderboard_max and i < len(all_members):
-            last_digits = int(str(i)[-2:])
-
+        # Loop to create member_list
+        for i in range(0, len(all_members[:leaderboard_max])):
             member = all_members[i]
-            member_list += "#{0} <@!{1}>\t**level**: {2}\n".format(i + 1, member[self.MEMBER_ID],
-                                                                    member[self.LEVEL])
-            i += 1
+            member_list += "\n#{number} <@!{ID}> - Level : {LVL}".format(number=i+1, ID=member[self.MEMBER_ID], LVL=member[self.LEVEL])
 
         try:
             embed.description = member_list

@@ -134,17 +134,10 @@ class Lvladmin:
         embed.set_thumbnail(url=ctx.guild.icon_url)
         embed.timestamp = datetime.utcnow()
 
-        i = 0
-        while i < leaderboard_max and i < len(all_members):
-            last_digits = int(str(i)[-2:])
-
+        # Loop to create member_list
+        for i in range(0, len(all_members[:leaderboard_max])):
             member = all_members[i]
-            member_list += "#{0} <@!{1}>\t**level**: {2}\t**messages**: {3}/{4}\n".format(i + 1,
-                                                                                       member[self.MEMBER_ID],
-                                                                                       member[self.LEVEL],
-                                                                                       member[self.MESSAGE_WITH_XP],
-                                                                                       member[self.MESSAGE_COUNT])
-            i += 1
+            member_list += "\n#{number} <@!{ID}> - Level : {LVL} - Messages : {XP}/{COUNT}".format(number=i+1, ID=member[self.MEMBER_ID], LVL=member[self.LEVEL], XP=member[self.MESSAGE_WITH_XP], COUNT=member[self.MESSAGE_COUNT])
 
         try:
             embed.description = member_list
