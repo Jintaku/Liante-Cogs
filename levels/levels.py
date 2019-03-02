@@ -153,8 +153,19 @@ class Levels(BaseCog, Lvladmin, X):
         embed.set_thumbnail(url=member.avatar_url)
         embed.add_field(name="Level", value=current_lvl, inline=True)
         embed.add_field(name="Role", value=level_role, inline=True)
-        embed.add_field(name="Current XP", value="{} / {}".format(current_exp, next_goal), inline=True)
-        embed.timestamp = datetime.utcnow()
+
+        # Calculate percentage
+        percentage = current_exp * 100 / next_goal
+        log.debug(percentage)
+
+        # Emojis for progress bar
+        check_box_emoji = "\N{WHITE HEAVY CHECK MARK}"
+        empty_box_emoji = "\N{BLACK LARGE SQUARE}"
+
+        # The progress bar
+        progress_bar = (check_box_emoji * int(percentage // 10)) + (empty_box_emoji * int(10 - percentage // 10))
+
+        embed.add_field(name=f"XP ({current_exp}/{next_goal})", value=f"{progress_bar}", inline=True)
 
         return embed
 
