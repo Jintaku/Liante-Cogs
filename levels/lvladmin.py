@@ -5,10 +5,21 @@ from random import randint
 from datetime import datetime
 import discord
 import time
+import logging
+
+log = logging.getLogger("lvladmin")  # Thanks to Sinbad for the example code for logging
+log.setLevel(logging.DEBUG)
+
+console = logging.StreamHandler()
+
+if logging.getLogger("red").isEnabledFor(logging.DEBUG):
+    console.setLevel(logging.DEBUG)
+else:
+    console.setLevel(logging.INFO)
+log.addHandler(console)
 
 class Lvladmin:
 
-    # TODO : Per-guild ignore
     @checks.admin_or_permissions(administrator=True)
     @commands.guild_only()
     @commands.group(aliases=["la"])
@@ -29,18 +40,23 @@ class Lvladmin:
     @roles.command(name="list")
     async def roles_list(self, ctx: Context):
         """Shows all configured roles"""
+
+        # Get roles data
         guild_roles = await self._get_roles(ctx.guild)
+
+        # Start building embed
         embed = discord.Embed(title="Configured Roles:")
+
+        # Loop create fields for roles
         for role in guild_roles:
             embed.add_field(name="Level {0} - {1}".format(role[self.LEVEL], role[self.ROLE_NAME]),
-                            value="{}".format(role[self.DESCRIPTION]),
-                            inline=False)
+                            value="{}".format(role[self.DESCRIPTION]), inline=False)
 
+        # If no fields aka no roles, say it
         if not embed.fields:
             embed.description = "No autoroles have been defined in this Guild yet."
 
         embed.set_footer(text="use !la guild roles add <role> <level> [description] to add more")
-
         await ctx.send(embed=embed)
 
     @roles.command(name="add")
@@ -52,19 +68,25 @@ class Lvladmin:
 
         Use quotation marks and case sensitive role name in case it can't be mentioned
         """
+        # Set name and ID based on positional data
         role_id = str(new_role.id)
         role_name = new_role.name
+
+        # Get role data
         guild_config = await self._get_guild_config(ctx.guild)
         guild_roles = await self._get_roles(ctx.guild)
 
+        # Loop roles to find if any already exist
         for role in guild_roles:
             if role[self.ROLE_ID] == role_id or role[self.LEVEL] == level:
-                await ctx.send("**{0}** has already been assigned to level {1}!".format(role[self.ROLE_NAME],
-                                                                                        role[self.LEVEL]))
+                await ctx.send("**{0}** has already been assigned to level {1}!".format(role[self.ROLE_NAME], role[self.LEVEL]))
                 return
 
+        # If description is not specified, default description
         if description is None:
             description = self.DEFAULT_DESC
+
+        # Set up new role
         role_config = {
             self.ROLE_ID: role_id,
             self.ROLE_NAME: role_name,
@@ -72,9 +94,11 @@ class Lvladmin:
             self.DESCRIPTION: description
         }
 
+        # Append it and sort it
         guild_roles.append(role_config)
         guild_roles.sort(key=lambda k: k[self.LEVEL])
 
+        # Set it and send message to notify of success
         await guild_config.set_raw(self.GUILD_ROLES, value=guild_roles)
         await ctx.send("{0} will be automatically earned at level {1}".format(new_role.name, level))
 
@@ -85,10 +109,14 @@ class Lvladmin:
 
         Use quotation marks and case sensitive role name in case it can't be mentioned
         """
+        # Get ID from positional data
         role_id = str(old_role.id)
+
+        # Get configuration and role data
         guild_config = await self._get_guild_config(ctx.guild)
         guild_roles = await self._get_roles(ctx.guild)
 
+        # Loop through roles and checks if role is in them then removes it
         for role in guild_roles:
             if role_id == role[self.ROLE_ID]:
                 guild_roles.remove(role)
@@ -105,6 +133,7 @@ class Lvladmin:
 
         This doesn't ask for confirmation and deletes the whole player database
         """
+        # Clear every user in guild
         await self.config.clear_all_members(ctx.guild)
         await ctx.send("The guild's data has been wiped.")
 
@@ -117,18 +146,23 @@ class Lvladmin:
         and xpmsgs is the amount of those messages sent off cooldown and awarded xp. It helps when tuning the cooldown
         and xp settings.
         """
+        # Get configuration and member data
         guild_config = await self._get_guild_config(ctx.guild)
         leaderboard_max = await guild_config.get_raw(self.LEADERBOARD_MAX)
         guild_members = await self._get_members(ctx.guild)
         all_members = guild_members.values()
+
+        # Checks if there is any members
         if len(all_members) == 0:
             await ctx.send("No member activity registered.")
             return
 
+        # Sorts members in order with level and XP
         all_members = sorted(all_members, key=lambda u: (u[self.LEVEL], u[self.EXP]), reverse=True)
         top_member = discord.utils.find(lambda m: m.display_name == all_members[0][self.USERNAME], ctx.guild.members)
         member_list = ""
 
+        # Build Embed
         embed = discord.Embed()
         embed.set_author(name=ctx.guild.name + " Leaderboard")
         embed.set_thumbnail(url=ctx.guild.icon_url)
@@ -139,6 +173,7 @@ class Lvladmin:
             member = all_members[i]
             member_list += "\n#{number} <@!{ID}> - Level : {LVL} - Messages : {XP}/{COUNT}".format(number=i+1, ID=member[self.MEMBER_ID], LVL=member[self.LEVEL], XP=member[self.MESSAGE_WITH_XP], COUNT=member[self.MESSAGE_COUNT])
 
+        # Try to set and send the embed and tells user if it excepts
         try:
             embed.description = member_list
             await ctx.send(embed=embed)
@@ -152,11 +187,15 @@ class Lvladmin:
 
         channel: The channel you want to toggle. If none given, the current channel will be taken.
         """
+
+        # If channel is not specified, use current channel
         if channel is None:
             channel = ctx.channel
 
+        # Get channel config
         channel_config = await self._get_channel_config(channel)
 
+        # Checks config if already ignored or not and reacts based on that
         if not await channel_config.get_raw(self.IGNORED_CHANNEL):
             await channel_config.set_raw(self.IGNORED_CHANNEL, value=True)
             await ctx.send("Channel {0.mention} will now be ignored.".format(channel))
@@ -178,11 +217,15 @@ class Lvladmin:
 
         member: Mention the member whose data you want to delete.
         """
+        # Get member data
         member_data = self.config.member(member)
+
+        # Checks if ID is 000000000 and says it has no data if so
         if await member_data.get_raw(self.MEMBER_ID) == self.DEFAULT_ID:
             await ctx.send("No data for {} has been found".format(member.mention))
             return
 
+        # Else it deletes the data
         await self.config.member(member).clear()
         await ctx.send("Data for {} has been deleted!".format(member.mention))
 
@@ -196,10 +239,14 @@ class Lvladmin:
         level: The new member level.
         """
 
+        # Get guild data and member data
         guild_config = await self._get_guild_config(ctx.guild)
         member_data = await self._get_member_data(guild_config=guild_config, member=member)
 
+        # Sets level
         await member_data.set_raw(self.LEVEL, value=level)
+
+        # Checks role and goal then send message
         await self._level_role(member_data=member_data, member=member)
         await self._level_goal(member_data=member_data)
         await ctx.send("Level of {0} has been changed to {1}".format(member.mention, level))
@@ -217,17 +264,26 @@ class Lvladmin:
 
         reason: if there's a particular reason why they deserve it
         """
+
+        # Get guild config and member data
         guild_config = await self._get_guild_config(ctx.guild)
         member_data = await self._get_member_data(guild_config=guild_config, member=member)
 
+        # Give XP and set count which is level
         count = await self._give_xp(member_data=member_data, member=member, exp=xp)
 
+        # If reason is set, add for to reason
         if reason is not None:
             reason = " for " + reason
+
+        # Else make it empty
         else:
             reason = ""
+
+        # Send message
         await ctx.send("{0.mention} has received {1} xp{2}!".format(member, xp, reason))
 
+        # If count isn't 0, send message to tell user they leveled up
         if count != 0:
             lvl = await member_data.get_raw(self.LEVEL)
             levels = "level" if count == 1 else "levels"
@@ -245,6 +301,7 @@ class Lvladmin:
 
         this doesn't ask for confirmation and does not affect the player database
         """
+        # Clear config defaults
         await self.config.guild(ctx.guild).clear()
         await ctx.send("Configuration defaults have been restored")
 
@@ -260,6 +317,7 @@ class Lvladmin:
 
         This is the xp needed to reach level 1. Subsequent goals are measured with the current level's value.
         """
+        # Set XP Goal base
         await self.config.guild(ctx.guild).set_raw(self.XP_GOAL_BASE, value=value)
         await ctx.send("XP goal base value updated")
 
@@ -270,6 +328,7 @@ class Lvladmin:
 
         XP gained += lvl * this factor
         """
+        # Set XP Gain factor
         await self.config.guild(ctx.guild).set_raw(self.XP_GAIN_FACTOR, value=value)
         await ctx.send("XP gain factor value updated")
 
@@ -280,6 +339,7 @@ class Lvladmin:
 
         Note that the real minimum is this * lvl * gain factor
         """
+        # Set XP min
         await self.config.guild(ctx.guild).set_raw(self.XP_MIN, value=value)
         await ctx.send("Minimum xp per message value updated")
 
@@ -290,6 +350,7 @@ class Lvladmin:
 
         Note that the real maximum is this * lvl * gain factor
         """
+        # Set XP max
         await self.config.guild(ctx.guild).set_raw(self.XP_MAX, value=value)
         await ctx.send("Maximum xp per message value updated")
 
@@ -300,6 +361,7 @@ class Lvladmin:
 
         In seconds
         """
+        # Set XP cooldown
         await self.config.guild(ctx.guild).set_raw(self.COOLDOWN, value=value)
         await ctx.send("XP cooldown value updated")
 
@@ -308,6 +370,7 @@ class Lvladmin:
         """
         Max amount of entries on the leaderboard - default: 20
         """
+        # Set Leaderboard entries max
         await self.config.guild(ctx.guild).set_raw(self.LEADERBOARD_MAX, value=value)
         await ctx.send("Leaderboard's max entries updated")
 
@@ -320,6 +383,7 @@ class Lvladmin:
 
         ***this has not yet been implemented***
         """
+        # TODO : Set single role configuration
         await self.config.guild(ctx.guild).set_raw(self.SINGLE_ROLE, value=value)
         await ctx.send("Role mode value updated")
 
@@ -330,6 +394,7 @@ class Lvladmin:
 
         If true, the bot will announce publicly when someone levels up
         """
+        # Set announcement status toggle
         await self.config.guild(ctx.guild).set_raw(self.MAKE_ANNOUNCEMENTS, value=value)
         value = "enabled" if await self.config.guild(ctx.guild).make_announcements() else "disabled"
         await ctx.send("Public announcements are now {}".format(value))
@@ -342,6 +407,7 @@ class Lvladmin:
         If true, the bot will keep record of messages for xp and leveling purposes. Otherwise it will only listen to
         commands
         """
+        # Set active or not toggle
         await self.config.guild(ctx.guild).set_raw(self.ACTIVE, value=value)
         value = "enabled" if await self.config.guild(ctx.guild).active() else "disabled"
         await ctx.send("XP tracking is now {}".format(value))
@@ -366,14 +432,23 @@ class Lvladmin:
 
         Example: Congratulations {mention}, you're now level {level}.
         """
+
+        # If message is none, return
         if message is None:
             return
 
+        # If message is "none", make it empty
         if message == "none":
             message = ""
+
+        # Set message
         await self.config.guild(ctx.guild).set_raw(self.LEVEL_UP_MESSAGE, value=message)
+
+        # If empty, tell no message will be sent
         if message == "":
             await ctx.send("No message will be sent when leveling up")
+
+        # Else tell it was updated
         else:
             await ctx.send("Level-up message updated")
 
@@ -398,14 +473,23 @@ class Lvladmin:
 
         Example: Your days as {oldrole} are over. Your new role is {newrole}.
         """
+
+        # If message is none, return
         if message is None:
             return
 
+        # If message is "none", make it empty
         if message == "none":
             message = ""
+
+        # Set message
         await self.config.guild(ctx.guild).set_raw(self.ROLE_CHANGE_MESSAGE, value=message)
+
+        # If empty, tell no message will be sent
         if message == "":
             await ctx.send("No message will be sent when earning a new role")
+
+        # Else tell it was updated
         else:
             await ctx.send("New role message updated")
 
@@ -421,6 +505,7 @@ class Lvladmin:
 
         This is the xp needed to reach level 1. Subsequent goals are measured with the current level's value.
         """
+        # Get XP goal base
         value = await self.config.guild(ctx.guild).get_raw(self.XP_GOAL_BASE)
         await ctx.send("XP goal base: {}".format(value))
 
@@ -431,6 +516,7 @@ class Lvladmin:
 
         XP gained += lvl * this factor
         """
+        # Get XP gain reward
         value = await self.config.guild(ctx.guild).get_raw(self.XP_GAIN_FACTOR)
         await ctx.send("XP gain factor: {}".format(value))
 
@@ -441,6 +527,7 @@ class Lvladmin:
 
         Note that the real minimum is this * lvl * gain factor
         """
+        # Get XP min
         value = await self.config.guild(ctx.guild).get_raw(self.XP_MIN)
         await ctx.send("Minimum xp per message: {}".format(value))
 
@@ -451,6 +538,7 @@ class Lvladmin:
 
         Note that the real maximum is this * lvl * gain factor
         """
+        # Get XP max
         value = await self.config.guild(ctx.guild).get_raw(self.XP_MAX)
         await ctx.send("Maximum xp per message: {}".format(value))
 
@@ -461,6 +549,7 @@ class Lvladmin:
 
         In seconds
         """
+        # Get cooldown
         value = await self.config.guild(ctx.guild).get_raw(self.COOLDOWN)
         await ctx.send("XP cooldown: {}".format(value))
 
@@ -469,6 +558,7 @@ class Lvladmin:
         """
         Max amount of entries on the leaderboard
         """
+        # Get leaderboard max
         value = await self.config.guild(ctx.guild).get_raw(self.LEADERBOARD_MAX)
         await ctx.send("Leaderboard's max entries: {}".format(value))
 
@@ -481,6 +571,7 @@ class Lvladmin:
 
         ***this has not yet been implemented***
         """
+        # TODO : Get single role configuration
         value = "single" if await self.config.guild(ctx.guild).get_raw(self.SINGLE_ROLE) else "multi"
         await ctx.send("The role mode is set to: {}-role".format(value))
 
@@ -491,6 +582,7 @@ class Lvladmin:
 
         If true, the bot will announce publicly when someone levels up
         """
+        # Get announcements status
         value = "enabled" if await self.config.guild(ctx.guild).get_raw(self.MAKE_ANNOUNCEMENTS) else "disabled"
         await ctx.send("Public announcements are {}".format(value))
 
@@ -502,6 +594,7 @@ class Lvladmin:
         If true, the bot will keep record of messages for xp and leveling purposes. Otherwise it will only listen to
         commands
         """
+        # Get active or not status
         value = "enabled" if await self.config.guild(ctx.guild).get_raw(self.ACTIVE) else "disabled"
         await ctx.send("XP tracking is {}".format(value))
 
@@ -525,6 +618,7 @@ class Lvladmin:
 
         Example: Congratulations {mention}, you're now level {level}.
         """
+        # Get level up message
         message = await self.config.guild(ctx.guild).get_raw(self.LEVEL_UP_MESSAGE)
         await ctx.send(message)
 
@@ -549,5 +643,6 @@ class Lvladmin:
 
         Example: Your days as {oldrole} are over. Your new role is {newrole}.
         """
+        # Get role message
         message = await self.config.guild(ctx.guild).get_raw(self.ROLE_CHANGE_MESSAGE)
         await ctx.send(message)

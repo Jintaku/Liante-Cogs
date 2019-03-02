@@ -192,6 +192,7 @@ class Levels(BaseCog, Lvladmin, X):
             member = all_members[i]
             member_list += "\n#{number} <@!{ID}> - Level : {LVL}".format(number=i+1, ID=member[self.MEMBER_ID], LVL=member[self.LEVEL])
 
+        # Try to set and send embed and tell user if it excepts
         try:
             embed.description = member_list
             await ctx.send(embed=embed)
