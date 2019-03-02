@@ -232,7 +232,7 @@ class Lvladmin:
     @member.command(name="setlevel", aliases=["lvl", "level"])
     async def set_level(self, ctx: Context, member: discord.Member, level: int):
         """
-        Changes the level of a member.
+        Changes the level of a member. (Sets their XP to 0 to avoid issues)
 
         member: Mention the member to which you want to change the level.
 
@@ -243,8 +243,9 @@ class Lvladmin:
         guild_config = await self._get_guild_config(ctx.guild)
         member_data = await self._get_member_data(guild_config=guild_config, member=member)
 
-        # Sets level
+        # Sets level and XP
         await member_data.set_raw(self.LEVEL, value=level)
+        await member_data.set_raw(self.EXP, value=0)
 
         # Checks role and goal then send message
         await self._level_role(member_data=member_data, member=member)
