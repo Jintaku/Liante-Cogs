@@ -80,7 +80,10 @@ class X:
 
             # If custom message is not empty, send it
             if level_up_message != "":
-                await channel.send(level_up_message)
+                embed = discord.Embed()
+                embed.set_author(name=member.display_name + " leveled up!")
+                embed.description = level_up_message
+                await channel.send(embed=embed)
 
     async def _is_valid_message(self, message: discord.Message): # Checks if message is a user message
 
