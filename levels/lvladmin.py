@@ -166,7 +166,6 @@ class Lvladmin:
         embed = discord.Embed()
         embed.set_author(name=ctx.guild.name + " Leaderboard")
         embed.set_thumbnail(url=ctx.guild.icon_url)
-        embed.timestamp = datetime.utcnow()
 
         # Loop to create member_list
         for i in range(0, len(all_members[:leaderboard_max])):
