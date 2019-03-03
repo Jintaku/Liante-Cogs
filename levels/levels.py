@@ -203,14 +203,16 @@ class Levels(BaseCog, Lvladmin, X):
         member_list = ""
         member_list_blocks = []
         # Loop to create member_list
-        for i in range(0, len(all_members)):
-            member = all_members[i]
+        for number, member in enumerate(all_members, start=1):
+            # If user who used command, assign member_rank for later
             if member[self.MEMBER_ID] == member_id:
-                member_rank = i + 1
-            member_list += "\n**#{number}** <@!{ID}> ({LVL})".format(number=i+1, ID=member[self.MEMBER_ID], LVL=member[self.LEVEL])
-            if i + 1 % 10 == 0:
+                member_rank = number
+            member_list += "\n**#{number}** <@!{ID}> ({LVL})".format(number=number, ID=member[self.MEMBER_ID], LVL=member[self.LEVEL])
+            # Once loop reaches the amount of people leaderboard_max has, assign it to the list and empty member_list for further use
+            if number % leaderboard_max == 0:
                 member_list_blocks.append(member_list)
                 member_list = ""
+        # If there's any left-over, append it
         if member_list != "":
             member_list_blocks.append(member_list)
 
