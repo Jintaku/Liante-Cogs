@@ -1,4 +1,5 @@
 from redbot.core import commands, Config, checks
+from redbot.core.utils.menus import menu, commands, DEFAULT_CONTROLS
 from redbot.core.bot import Red
 from redbot.core.commands import Context
 from random import randint
@@ -77,7 +78,7 @@ class Levels(BaseCog, Lvladmin, X):
             self.COOLDOWN: 60,
             self.SINGLE_ROLE: True,
             self.MAKE_ANNOUNCEMENTS: True,
-            self.ACTIVE: True,
+            self.ACTIVE: False,
             self.LEADERBOARD_MAX: 20,
             self.LEVEL_UP_MESSAGE: "Congratulations {mention}, you're now level {level}. ",
             self.ROLE_CHANGE_MESSAGE: "Your days as {oldrole} are over. Your new role is {newrole}.",
@@ -180,6 +181,15 @@ class Levels(BaseCog, Lvladmin, X):
         guild_members = await self._get_members(ctx.guild)
         all_members = guild_members.values()
 
+        # Get user data
+        member = ctx.author
+        guild = ctx.guild
+        guild_config = self.config.guild(guild)
+        member_data = await self._get_member_data(guild_config=guild_config, member=member)
+        member_lvl = await member_data.get_raw(self.LEVEL)
+        member_id = await member_data.get_raw(self.MEMBER_ID)
+        member_username = await member_data.get_raw(self.USERNAME)
+
         # If no members then don't show it
         if len(all_members) == 0:
             await ctx.send("No member activity registered.")
@@ -191,21 +201,32 @@ class Levels(BaseCog, Lvladmin, X):
 
         # Set variable to be appended to
         member_list = ""
-
-        # Start building Embed
-        embed = discord.Embed()
-        embed.set_author(name=ctx.guild.name + " Leaderboard")
-        embed.set_thumbnail(url=ctx.guild.icon_url)
-
+        member_list_blocks = []
         # Loop to create member_list
-        for i in range(0, len(all_members[:leaderboard_max])):
+        for i in range(0, len(all_members)):
             member = all_members[i]
-            member_list += "\n#{number} <@!{ID}> - Level : {LVL}".format(number=i+1, ID=member[self.MEMBER_ID], LVL=member[self.LEVEL])
+            if member[self.MEMBER_ID] == member_id:
+                member_rank = i + 1
+            member_list += "\n**#{number}** <@!{ID}> ({LVL})".format(number=i+1, ID=member[self.MEMBER_ID], LVL=member[self.LEVEL])
+            if i + 1 % 10 == 0:
+                member_list_blocks.append(member_list)
+                member_list = ""
+        if member_list != "":
+            member_list_blocks.append(member_list)
+
 
         # Try to set and send embed and tell user if it excepts
         try:
-            embed.description = member_list
-            await ctx.send(embed=embed)
+            embeds = []
+            for page in member_list_blocks:
+                # Start building Embed
+                embed = discord.Embed()
+                embed.set_author(name=ctx.guild.name + " Leaderboard")
+                embed.set_thumbnail(url=ctx.guild.icon_url)
+                embed.description = page
+                embed.set_footer(text=f"You're rank #{member_rank} (Level {member_lvl}), {member_username}.")
+                embeds.append(embed)
+            await menu(ctx, pages=embeds, controls=DEFAULT_CONTROLS, message=None, page=0, timeout=15)
         except discord.errors.HTTPException:
             await ctx.send("The list is too long. Please set a lower limit with `!la config set leaderboard_max`")
 

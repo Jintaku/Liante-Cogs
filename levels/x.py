@@ -76,7 +76,7 @@ class X:
 
             # If old and new roles are different then send it
             if old_role != new_role:
-                level_up_message += (await guild_config.get_raw(self.ROLE_CHANGE_MESSAGE)).format(**message_variables)
+                level_up_message += "\n\n" + (await guild_config.get_raw(self.ROLE_CHANGE_MESSAGE)).format(**message_variables)
 
             # If custom message is not empty, send it
             if level_up_message != "":
